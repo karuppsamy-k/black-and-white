@@ -1,91 +1,60 @@
-import { Routes, Route, Link } from 'react-router-dom';
-import ProtectedRoute from './ProtectedRoute';
-import RoleBasedRoute from './RoleBasedRoute';
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import UserLayout from '../layouts/UserLayout';
+import ShopkeeperLayout from '../layouts/ShopkeeperLayout';
+import AdminLayout from '../layouts/AdminLayout';
+import NotFoundPage from '../pages/NotFoundPage';
+
+// Module route arrays
+import { userRoutes } from '../modules/user/routes/userRoutes';
+import { shopkeeperRoutes } from '../modules/shopkeeper/routes/shopkeeperRoutes';
+import { adminRoutes } from '../modules/admin/routes/adminRoutes';
+
+// Standalone Auth Pages
+import { ShopkeeperLoginPage } from '../modules/shopkeeper/pages/ShopkeeperLoginPage';
+import { ShopkeeperRegisterPage } from '../modules/shopkeeper/pages/ShopkeeperRegisterPage';
+import { AdminLoginPage } from '../modules/admin/pages/AdminLoginPage';
 
 /**
- * AppRoutes (Phase 1 Routing Configuration)
- * Configures central route hierarchy and module placeholders.
+ * AppRoutes (Phase 2 Central Navigation)
+ * Connects 43 distinct pages across User, Shopkeeper, and Admin modules with Vercel SPA routing.
  */
 export const AppRoutes = () => {
   return (
     <Routes>
-      {/* Root / Home placeholder */}
-      <Route
-        path="/"
-        element={
-          <div className="p-8 text-center">
-            <h1 className="text-3xl font-bold mb-4">Black&White - Sweets and Snacks</h1>
-            <p className="text-gray-600 mb-6">Phase 1: Project Initialization & Architecture</p>
-            <div className="flex justify-center gap-4">
-              <Link to="/user" className="px-4 py-2 bg-blue-500 text-white rounded">
-                User Module
-              </Link>
-              <Link to="/shopkeeper" className="px-4 py-2 bg-green-500 text-white rounded">
-                Shopkeeper Module
-              </Link>
-              <Link to="/admin" className="px-4 py-2 bg-purple-500 text-white rounded">
-                Admin Module
-              </Link>
-            </div>
-          </div>
-        }
-      />
+      {/* Root redirect to Customer Storefront */}
+      <Route path="/" element={<Navigate to="/user" replace />} />
 
-      {/* Module Placeholders */}
-      <Route element={<ProtectedRoute />}>
-        {/* User Module */}
-        <Route element={<RoleBasedRoute allowedRoles={['user', 'admin']} />}>
-          <Route
-            path="/user/*"
-            element={
-              <div className="p-8">
-                <h2 className="text-2xl font-semibold">User Module Placeholder</h2>
-                <p className="text-gray-600">Routes: Browse shops, products, cart, orders, profile</p>
-                <Link to="/" className="text-blue-500 underline mt-4 inline-block">Back Home</Link>
-              </div>
-            }
-          />
-        </Route>
-
-        {/* Shopkeeper Module */}
-        <Route element={<RoleBasedRoute allowedRoles={['shopkeeper', 'admin']} />}>
-          <Route
-            path="/shopkeeper/*"
-            element={
-              <div className="p-8">
-                <h2 className="text-2xl font-semibold">Shopkeeper Module Placeholder</h2>
-                <p className="text-gray-600">Routes: Shop, products, orders, sales & earnings</p>
-                <Link to="/" className="text-blue-500 underline mt-4 inline-block">Back Home</Link>
-              </div>
-            }
-          />
-        </Route>
-
-        {/* Admin Module */}
-        <Route element={<RoleBasedRoute allowedRoles={['admin']} />}>
-          <Route
-            path="/admin/*"
-            element={
-              <div className="p-8">
-                <h2 className="text-2xl font-semibold">Admin Module Placeholder</h2>
-                <p className="text-gray-600">Routes: User & shopkeeper management, approvals, analytics</p>
-                <Link to="/" className="text-blue-500 underline mt-4 inline-block">Back Home</Link>
-              </div>
-            }
-          />
-        </Route>
+      {/* 1. USER MODULE (16 Pages) */}
+      <Route path="/user" element={<UserLayout />}>
+        {userRoutes.map((r, i) => (
+          <Route key={i} path={r.path} element={r.element} />
+        ))}
       </Route>
 
-      {/* 404 Fallback */}
-      <Route
-        path="*"
-        element={
-          <div className="p-8 text-center">
-            <h2 className="text-xl font-bold">404 - Page Not Found</h2>
-            <Link to="/" className="text-blue-500 underline mt-2 inline-block">Back to Home</Link>
-          </div>
-        }
-      />
+      {/* Standalone Shopkeeper Auth Routes */}
+      <Route path="/shopkeeper/login" element={<ShopkeeperLoginPage />} />
+      <Route path="/shopkeeper/register" element={<ShopkeeperRegisterPage />} />
+
+      {/* 2. SHOPKEEPER MODULE (Dashboard & Management Pages) */}
+      <Route path="/shopkeeper" element={<ShopkeeperLayout />}>
+        {shopkeeperRoutes.map((r, i) => (
+          <Route key={i} path={r.path} element={r.element} />
+        ))}
+      </Route>
+
+      {/* Standalone Admin Auth Route */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+
+      {/* 3. ADMIN MODULE (Dashboard & Platform Governance) */}
+      <Route path="/admin" element={<AdminLayout />}>
+        {adminRoutes.map((r, i) => (
+          <Route key={i} path={r.path} element={r.element} />
+        ))}
+      </Route>
+
+      {/* 404 NOT FOUND ROUTE */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 };

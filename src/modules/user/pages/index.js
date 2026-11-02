@@ -1,2 +1,16 @@
-// User module pages placeholder
-export default {};
+export { HomePage } from './HomePage';
+export { RegisterPage } from './RegisterPage';
+export { LoginPage } from './LoginPage';
+export { UserDashboard } from './UserDashboard';
+export { ShopListingPage } from './ShopListingPage';
+export { ShopDetailsPage } from './ShopDetailsPage';
+export { ProductListingPage } from './ProductListingPage';
+export { ProductDetailsPage } from './ProductDetailsPage';
+export { SearchFilterPage } from './SearchFilterPage';
+export { CartPage } from './CartPage';
+export { CheckoutPage } from './CheckoutPage';
+export { MyOrdersPage } from './MyOrdersPage';
+export { OrderTrackingPage } from './OrderTrackingPage';
+export { UserProfilePage } from './UserProfilePage';
+export { AddressManagementPage } from './AddressManagementPage';
+export { SettingsPage } from './SettingsPage';

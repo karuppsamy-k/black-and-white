@@ -1,2 +1,12 @@
-// Admin module pages placeholder
-export default {};
+export { AdminLoginPage } from './AdminLoginPage';
+export { AdminDashboard } from './AdminDashboard';
+export { UserManagementPage } from './UserManagementPage';
+export { ShopkeeperManagementPage } from './ShopkeeperManagementPage';
+export { ShopApprovalPage } from './ShopApprovalPage';
+export { ShopManagementPage } from './ShopManagementPage';
+export { ProductManagementPage } from './ProductManagementPage';
+export { OrderManagementPage } from './OrderManagementPage';
+export { AdminOrderDetailsPage } from './AdminOrderDetailsPage';
+export { ReportsAnalyticsPage } from './ReportsAnalyticsPage';
+export { AdminProfilePage } from './AdminProfilePage';
+export { AdminSettingsPage } from './AdminSettingsPage';

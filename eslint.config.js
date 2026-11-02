@@ -27,7 +27,7 @@ export default [
         'warn',
         {
           varsIgnorePattern: '^_|^[A-Z_]',
-          argsIgnorePattern: '^_',
+          argsIgnorePattern: '^_|^[A-Z_]',
         },
       ],
       'react-refresh/only-export-components': [
