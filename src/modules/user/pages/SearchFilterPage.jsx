@@ -1,36 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Star, ShoppingBag, X } from 'lucide-react';
-import { MOCK_PRODUCTS, MOCK_SHOPS } from '../../../utils/mockData';
+import { Search, Filter, ShoppingBag, X } from 'lucide-react';
+import { getAllProducts } from '../../../services/firebase/firestoreService';
 import { useApp } from '../../../context/AppContext';
 import Button from '../../../components/common/Button';
 import SearchBar from '../../../components/common/SearchBar';
+import { CardSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const SearchFilterPage = () => {
   const [keyword, setKeyword] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [maxPrice, setMaxPrice] = useState(500);
-  const [minRating, setMinRating] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(1000);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { addToCart } = useApp();
 
-  const categories = ['All', 'Halwa', 'Sweets', 'Savouries'];
+  const categories = ['All', 'Halwa', 'Sweets', 'Savouries', 'Mixture', 'Murukku'];
 
-  const filtered = MOCK_PRODUCTS.filter((prod) => {
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      setLoading(true);
+      try {
+        const data = await getAllProducts();
+        setProducts(data);
+      } catch (_err) {
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  const filtered = products.filter((prod) => {
+    const name = prod.name || '';
+    const desc = prod.description || '';
+    const shop = prod.shopName || '';
+    const category = prod.category || '';
     const matchKeyword =
-      prod.name.toLowerCase().includes(keyword.toLowerCase()) ||
-      prod.description.toLowerCase().includes(keyword.toLowerCase()) ||
-      prod.shopName.toLowerCase().includes(keyword.toLowerCase());
-    const matchCategory = selectedCategory === 'All' || prod.category === selectedCategory;
-    const matchPrice = prod.price <= maxPrice;
-    const matchRating = prod.rating >= minRating;
-    return matchKeyword && matchCategory && matchPrice && matchRating;
+      name.toLowerCase().includes(keyword.toLowerCase()) ||
+      desc.toLowerCase().includes(keyword.toLowerCase()) ||
+      shop.toLowerCase().includes(keyword.toLowerCase());
+    const matchCategory =
+      selectedCategory === 'All' || category.toLowerCase() === selectedCategory.toLowerCase();
+    const matchPrice = (Number(prod.price) || 0) <= maxPrice;
+    return matchKeyword && matchCategory && matchPrice;
   });
 
   const handleReset = () => {
     setKeyword('');
     setSelectedCategory('All');
-    setMaxPrice(500);
-    setMinRating(0);
+    setMaxPrice(1000);
   };
 
   return (
@@ -59,137 +80,131 @@ export const SearchFilterPage = () => {
             </button>
           </div>
 
-          {/* Search bar */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">Search Keyword</label>
+          {/* Search Input */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider">Search Keyword</label>
             <SearchBar
               value={keyword}
               onChange={setKeyword}
               onClear={() => setKeyword('')}
-              placeholder="e.g. Halwa, Mysorepak, Murukku..."
+              placeholder="e.g. Halwa, Murukku..."
             />
           </div>
 
           {/* Category Filter */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">Category</label>
-            <div className="space-y-1.5">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider">Category</label>
+            <div className="flex flex-wrap gap-1.5">
               {categories.map((cat) => (
-                <label key={cat} className="flex items-center gap-2.5 text-xs text-stone-700 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === cat}
-                    onChange={() => setSelectedCategory(cat)}
-                    className="text-amber-600 focus:ring-amber-500"
-                  />
-                  <span>{cat}</span>
-                </label>
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition ${
+                    selectedCategory.toLowerCase() === cat.toLowerCase()
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                  }`}
+                >
+                  {cat}
+                </button>
               ))}
             </div>
           </div>
 
           {/* Price Range Slider */}
           <div className="space-y-2">
-            <div className="flex justify-between text-xs font-bold text-stone-700 uppercase tracking-wider">
-              <span>Max Price</span>
-              <span className="text-amber-700">₹{maxPrice}</span>
+            <div className="flex justify-between items-center text-xs">
+              <span className="font-bold text-stone-400 uppercase tracking-wider">Max Price</span>
+              <span className="font-bold text-stone-900">₹{maxPrice}</span>
             </div>
             <input
               type="range"
-              min="100"
-              max="600"
-              step="20"
+              min="50"
+              max="1500"
+              step="50"
               value={maxPrice}
               onChange={(e) => setMaxPrice(Number(e.target.value))}
               className="w-full accent-amber-600 cursor-pointer"
             />
             <div className="flex justify-between text-[11px] text-stone-400">
-              <span>₹100</span>
-              <span>₹600</span>
-            </div>
-          </div>
-
-          {/* Minimum Rating */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">Minimum Rating</label>
-            <div className="flex gap-2">
-              {[0, 4.5, 4.7, 4.8].map((rt) => (
-                <button
-                  key={rt}
-                  onClick={() => setMinRating(rt)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 border transition ${
-                    minRating === rt
-                      ? 'bg-amber-600 text-white border-amber-600'
-                      : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
-                  }`}
-                >
-                  <Star className="w-3 h-3 fill-current" />
-                  <span>{rt === 0 ? 'All' : `${rt}+`}</span>
-                </button>
-              ))}
+              <span>₹50</span>
+              <span>₹1500</span>
             </div>
           </div>
         </div>
 
         {/* Results Grid */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between text-xs text-stone-500">
+        <div className="lg:col-span-8 space-y-6">
+          <div className="flex items-center justify-between text-xs text-stone-500 pb-2 border-b border-stone-200">
             <span>
-              Showing <strong className="text-stone-900">{filtered.length}</strong> delicacies found
+              Showing <strong>{filtered.length}</strong> delicacies
             </span>
-            {(keyword || selectedCategory !== 'All' || maxPrice < 500 || minRating > 0) && (
-              <span className="text-amber-700 font-medium">Filters Applied</span>
+            {(keyword || selectedCategory !== 'All' || maxPrice < 1000) && (
+              <button
+                onClick={handleReset}
+                className="text-amber-700 font-semibold hover:underline flex items-center gap-1"
+              >
+                Clear all filters <X className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
 
-          {filtered.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-dashed border-stone-300 p-12 text-center space-y-3">
-              <div className="text-3xl">🔍</div>
-              <h3 className="font-bold text-stone-800 text-base">No delicacies match your filter criteria</h3>
-              <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                Try widening your price range or resetting filters to browse all available traditional items.
-              </p>
-              <Button size="sm" variant="outline" onClick={handleReset}>
-                Reset Search Filters
-              </Button>
-            </div>
+          {loading ? (
+            <CardSkeleton count={6} className="lg:grid-cols-2" />
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title={products.length === 0 ? 'No Delicacies Listed Yet' : 'No Delicacies Match Your Filter'}
+              description={
+                products.length === 0
+                  ? 'Our artisan confectioneries are currently adding their specialty items. Check back soon!'
+                  : 'Try adjusting your search keyword or increasing your maximum price budget.'
+              }
+              actionLabel={products.length === 0 ? 'Explore Sweet Shops' : 'Reset Filters'}
+              onAction={products.length === 0 ? () => (window.location.href = '/user/shops') : handleReset}
+            />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {filtered.map((prod) => (
                 <div
                   key={prod.id}
-                  className="bg-white rounded-2xl border border-stone-200/80 overflow-hidden shadow-xs hover:shadow-lg transition flex flex-col justify-between"
+                  className="bg-white rounded-2xl border border-stone-200/80 overflow-hidden shadow-xs hover:shadow-lg transition-all flex flex-col justify-between"
                 >
                   <div>
-                    <Link to={`/user/products/${prod.id}`} className="block relative h-44 overflow-hidden">
-                      <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" />
-                      <span className="absolute top-2.5 right-2.5 bg-amber-500 text-stone-900 text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-current" /> {prod.rating}
+                    <Link to={`/user/products/${prod.id}`} className="block relative h-48 overflow-hidden bg-stone-100">
+                      <img
+                        src={prod.image || 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=500&auto=format&fit=crop&q=80'}
+                        alt={prod.name}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      />
+                      <span className="absolute top-3 left-3 bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                        {prod.category}
                       </span>
                     </Link>
-                    <div className="p-4">
-                      <p className="text-[10px] text-stone-400 font-medium truncate">{prod.shopName}</p>
+                    <div className="p-4 space-y-2">
+                      <p className="text-[11px] text-stone-400 font-medium">{prod.shopName}</p>
                       <Link to={`/user/products/${prod.id}`}>
-                        <h4 className="font-semibold text-stone-900 text-sm mt-0.5 hover:text-amber-700 line-clamp-1">
+                        <h3 className="font-semibold text-stone-900 text-sm hover:text-amber-700 transition line-clamp-1">
                           {prod.name}
-                        </h4>
+                        </h3>
                       </Link>
-                      <div className="mt-2.5 flex items-baseline justify-between">
+                      <p className="text-xs text-stone-500 line-clamp-2">{prod.description}</p>
+                      <div className="flex items-baseline justify-between pt-2">
                         <span className="text-base font-bold text-stone-900">₹{prod.price}</span>
-                        <span className="text-xs text-stone-400">{prod.weight}</span>
+                        {prod.weight && <span className="text-xs text-stone-400">{prod.weight}</span>}
                       </div>
                     </div>
                   </div>
                   <div className="p-4 pt-0">
                     <Button
                       fullWidth
-                      size="sm"
                       variant="primary"
+                      size="sm"
                       onClick={() => addToCart(prod)}
                       icon={ShoppingBag}
+                      disabled={prod.stock === 0}
                     >
-                      Add to Cart
+                      {prod.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
                     </Button>
                   </div>
                 </div>

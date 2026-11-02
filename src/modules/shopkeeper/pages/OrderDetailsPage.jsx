@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -9,23 +9,68 @@ import {
   Clock,
   Printer,
   ShieldCheck,
+  Package,
 } from 'lucide-react';
-import { MOCK_ORDERS } from '../../../utils/mockData';
+import { getOrderById, updateOrderStatus } from '../../../services/firebase/firestoreService';
 import { useApp } from '../../../context/AppContext';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import { DetailSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const OrderDetailsPage = () => {
   const { id } = useParams();
   const { showToast } = useApp();
-  const order = MOCK_ORDERS.find((o) => o.id === id) || MOCK_ORDERS[0];
-  const [currentStatus, setCurrentStatus] = useState(order.status);
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleUpdateStatus = (newStatus) => {
-    setCurrentStatus(newStatus);
-    showToast(`Order status updated to: ${newStatus}`, 'success');
+  useEffect(() => {
+    const fetchOrder = async () => {
+      setLoading(true);
+      try {
+        const data = await getOrderById(id);
+        setOrder(data);
+      } catch (_err) {
+        setOrder(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrder();
+  }, [id]);
+
+  const handleUpdateStatus = async (newStatus) => {
+    try {
+      await updateOrderStatus(id, newStatus);
+      setOrder((prev) => ({ ...prev, status: newStatus }));
+      showToast(`Order status updated to: ${newStatus}`, 'success');
+    } catch (_err) {
+      showToast('Error updating status', 'error');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8">
+        <DetailSkeleton />
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div className="max-w-4xl mx-auto py-16">
+        <EmptyState
+          icon={Package}
+          title="Order Not Found"
+          description="The requested order was not found in your store log."
+          actionLabel="Back to Order Management"
+          onAction={() => (window.location.href = '/shopkeeper/orders/manage')}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -36,10 +81,12 @@ export const OrderDetailsPage = () => {
         <div className="flex flex-wrap items-center justify-between gap-4 mt-2">
           <div>
             <h1 className="text-3xl font-serif font-black text-stone-900">Order #{order.id}</h1>
-            <p className="text-xs text-stone-500 mt-0.5">Placed on {order.date} • Customer: {order.customer}</p>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Placed on {new Date(order.createdAt || Date.now()).toLocaleDateString()} • Customer: {order.customerName}
+            </p>
           </div>
-          <Badge variant={currentStatus === 'Delivered' ? 'success' : 'warning'} size="md">
-            {currentStatus}
+          <Badge variant={order.status === 'Delivered' ? 'success' : 'warning'} size="md">
+            {order.status}
           </Badge>
         </div>
       </div>
@@ -49,110 +96,61 @@ export const OrderDetailsPage = () => {
         <div className="flex flex-wrap items-center gap-3">
           <Button
             size="sm"
-            variant={currentStatus === 'Preparing' ? 'primary' : 'outline'}
+            variant={order.status === 'Preparing' ? 'primary' : 'outline'}
             onClick={() => handleUpdateStatus('Preparing')}
           >
-            1. Preparing Batch
+            Mark Preparing
           </Button>
           <Button
             size="sm"
-            variant={currentStatus === 'Ready for Pickup' ? 'primary' : 'outline'}
-            onClick={() => handleUpdateStatus('Ready for Pickup')}
-          >
-            2. Packed & Ready
-          </Button>
-          <Button
-            size="sm"
-            variant={currentStatus === 'Out for Delivery' ? 'primary' : 'outline'}
-            onClick={() => handleUpdateStatus('Out for Delivery')}
-          >
-            3. Handed to Rider
-          </Button>
-          <Button
-            size="sm"
-            variant={currentStatus === 'Delivered' ? 'success' : 'outline'}
+            variant={order.status === 'Delivered' ? 'primary' : 'outline'}
             onClick={() => handleUpdateStatus('Delivered')}
           >
-            4. Delivered
+            Mark Delivered / Picked Up
+          </Button>
+          <Button
+            size="sm"
+            variant={order.status === 'Cancelled' ? 'danger' : 'outline'}
+            onClick={() => handleUpdateStatus('Cancelled')}
+          >
+            Cancel Order
           </Button>
         </div>
       </Card>
 
+      {/* Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Customer & Shipping */}
-        <Card title="Customer Information">
+        <Card title="Customer & Delivery">
           <div className="space-y-3 text-xs">
-            <div className="flex justify-between border-b border-stone-100 pb-2">
-              <span className="text-stone-400">Full Name</span>
-              <span className="font-bold text-stone-800">{order.customer}</span>
+            <div>
+              <span className="font-bold text-stone-900 block">{order.customerName}</span>
+              <span className="text-stone-500">{order.customerPhone}</span>
             </div>
-            <div className="flex justify-between border-b border-stone-100 pb-2">
-              <span className="text-stone-400">Phone</span>
-              <span className="font-semibold text-stone-800">{order.phone}</span>
-            </div>
-            <div className="pt-1">
-              <span className="text-stone-400 block mb-1">Doorstep Address</span>
-              <p className="text-stone-800 font-medium leading-relaxed">{order.address}</p>
+            <p className="text-stone-600 leading-relaxed">{order.address}</p>
+            <div className="pt-2 border-t border-stone-100 flex items-center justify-between">
+              <span className="text-stone-400">Payment:</span>
+              <span className="font-bold text-stone-900">{order.paymentMethod || 'UPI'}</span>
             </div>
           </div>
         </Card>
 
-        {/* Payment Summary */}
-        <Card title="Payment & Billing">
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between border-b border-stone-100 pb-2">
-              <span className="text-stone-400">Payment Gateway</span>
-              <span className="font-bold text-stone-800">{order.paymentMethod}</span>
-            </div>
-            <div className="flex justify-between border-b border-stone-100 pb-2">
-              <span className="text-stone-400">Payment Status</span>
-              <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded">
-                {order.paymentStatus}
-              </span>
-            </div>
-            <div className="flex justify-between border-b border-stone-100 pb-2">
-              <span className="text-stone-400">Subtotal</span>
-              <span className="font-semibold text-stone-800">₹{order.subtotal}</span>
-            </div>
-            <div className="flex justify-between border-b border-stone-100 pb-2">
-              <span className="text-stone-400">Packaging / Delivery</span>
-              <span className="font-semibold text-stone-800">₹{order.deliveryFee}</span>
-            </div>
-            <div className="flex justify-between font-bold text-sm text-stone-900 pt-1">
-              <span>Grand Total</span>
-              <span className="text-amber-800 font-black">₹{order.total}</span>
+        <Card title="Order Items Summary">
+          <div className="divide-y divide-stone-100 text-xs">
+            {order.items?.map((item, idx) => (
+              <div key={idx} className="py-2.5 flex justify-between">
+                <span>
+                  {item.quantity} × {item.name}
+                </span>
+                <span className="font-bold">₹{item.price * item.quantity}</span>
+              </div>
+            ))}
+            <div className="pt-3 flex justify-between font-bold text-sm text-stone-900">
+              <span>Total Payable</span>
+              <span>₹{order.total}</span>
             </div>
           </div>
         </Card>
       </div>
-
-      {/* Items Breakdown Table */}
-      <Card title="Delicacy Items Ordered">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-stone-100 text-stone-400 uppercase font-semibold">
-                <th className="py-2.5 px-2">Item Name</th>
-                <th className="py-2.5 px-2">Unit Price</th>
-                <th className="py-2.5 px-2">Quantity</th>
-                <th className="py-2.5 px-2 text-right">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {order.items?.map((item, i) => (
-                <tr key={i}>
-                  <td className="py-3 px-2 font-bold text-stone-800">{item.name}</td>
-                  <td className="py-3 px-2 text-stone-600">₹{item.price}</td>
-                  <td className="py-3 px-2 font-bold text-stone-900">{item.quantity}</td>
-                  <td className="py-3 px-2 text-right font-black text-stone-900">
-                    ₹{item.price * item.quantity}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
   );
 };

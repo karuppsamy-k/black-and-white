@@ -11,27 +11,8 @@ export const AppProvider = ({ children }) => {
   const [theme, setTheme] = useState('light');
   const [toast, setToast] = useState(null); // { type, message }
 
-  // Initial demo cart items
-  const [cart, setCart] = useState([
-    {
-      id: 'prod-1',
-      name: 'Special Tirunelveli Halwa',
-      shopName: 'Heritage Sweets & Savouries',
-      price: 240,
-      weight: '500g',
-      quantity: 2,
-      image: 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=300&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'prod-2',
-      name: 'Crispy Butter Murukku',
-      shopName: 'Heritage Sweets & Savouries',
-      price: 130,
-      weight: '250g',
-      quantity: 1,
-      image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=300&auto=format&fit=crop&q=80',
-    },
-  ]);
+  // Live customer cart initialized empty for public platform launch
+  const [cart, setCart] = useState([]);
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });

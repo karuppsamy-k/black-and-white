@@ -1,15 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, ArrowUpRight, Clock, FileText, CheckCircle2, ChevronRight } from 'lucide-react';
-import { MOCK_ORDERS } from '../../../utils/mockData';
+import { ShoppingBag, ArrowUpRight, Clock, FileText, CheckCircle2, ChevronRight, RefreshCw } from 'lucide-react';
+import { getOrdersByCustomer } from '../../../services/firebase/firestoreService';
+import { useAuth } from '../../../context/AuthContext';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import { OrderListSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const MyOrdersPage = () => {
+  const { currentUser } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filterStatus, setFilterStatus] = useState('All');
 
-  const filteredOrders = MOCK_ORDERS.filter((ord) => {
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = currentUser?.uid ? await getOrdersByCustomer(currentUser.uid) : [];
+      setOrders(data);
+    } catch (_err) {
+      setError('Unable to load your orders.');
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const filteredOrders = orders.filter((ord) => {
     if (filterStatus === 'All') return true;
     return ord.status === filterStatus;
   });
@@ -26,7 +50,7 @@ export const MyOrdersPage = () => {
 
         {/* Status Filter */}
         <div className="flex gap-2 text-xs">
-          {['All', 'Preparing', 'Delivered'].map((status) => (
+          {['All', 'Placed', 'Preparing', 'Delivered'].map((status) => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -42,60 +66,74 @@ export const MyOrdersPage = () => {
         </div>
       </div>
 
-      {/* Orders List */}
-      <div className="space-y-6">
-        {filteredOrders.map((order) => (
-          <Card key={order.id} className="overflow-hidden">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-stone-100 pb-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono font-bold text-stone-900 text-sm">{order.id}</span>
-                  <Badge variant={order.status === 'Delivered' ? 'success' : 'warning'}>
-                    {order.status}
-                  </Badge>
-                </div>
-                <p className="text-xs text-stone-500">
-                  Placed on <strong className="text-stone-700">{order.date}</strong> from{' '}
-                  <strong className="text-stone-700">{order.shopName}</strong>
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Link to={`/user/orders/${order.id}/track`}>
-                  <Button variant="primary" size="sm" icon={ArrowUpRight} iconPosition="right">
-                    Track Order
-                  </Button>
-                </Link>
-              </div>
-            </div>
-
-            <div className="py-4 space-y-2">
-              {order.items.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
-                    <span className="font-medium text-stone-800">{item.name}</span>
-                    <span className="text-stone-400">× {item.quantity}</span>
+      {/* Content Rendering */}
+      {error ? (
+        <div className="p-8 rounded-3xl bg-red-50 text-red-700 border border-red-200 text-center space-y-3">
+          <p className="text-sm font-medium">{error}</p>
+          <Button variant="outline" size="sm" onClick={fetchOrders} icon={RefreshCw}>
+            Retry Loading Orders
+          </Button>
+        </div>
+      ) : loading ? (
+        <OrderListSkeleton count={3} />
+      ) : filteredOrders.length === 0 ? (
+        <EmptyState
+          icon={ShoppingBag}
+          title={filterStatus !== 'All' ? `No ${filterStatus} Orders` : 'No Orders Placed Yet'}
+          description={
+            filterStatus !== 'All'
+              ? `You do not have any orders currently in "${filterStatus}" status.`
+              : 'Taste authentic South Indian heritage sweets prepared with pure desi cow ghee. Browse delicious varieties and place your first order!'
+          }
+          actionLabel="Explore Delicacies"
+          onAction={() => (window.location.href = '/user/products')}
+        />
+      ) : (
+        <div className="space-y-6">
+          {filteredOrders.map((order) => (
+            <Card key={order.id} className="overflow-hidden">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold text-stone-900 text-sm">{order.id}</span>
+                    <Badge variant={order.status === 'Delivered' ? 'success' : 'warning'}>
+                      {order.status}
+                    </Badge>
                   </div>
-                  <span className="font-semibold text-stone-900">₹{item.price * item.quantity}</span>
+                  <p className="text-xs text-stone-500">
+                    Placed on <strong className="text-stone-700">{new Date(order.createdAt || Date.now()).toLocaleDateString()}</strong> from{' '}
+                    <strong className="text-stone-700">{order.shopName || 'Sweet Shop'}</strong>
+                  </p>
                 </div>
-              ))}
-            </div>
 
-            <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-stone-500">
-              <div className="flex items-center gap-4">
-                <span>Payment: <strong className="text-stone-700">{order.paymentMethod}</strong> ({order.paymentStatus})</span>
-                <span>•</span>
-                <span>Delivery Address: <strong className="text-stone-700">{order.address}</strong></span>
+                <div className="flex items-center gap-4 self-end md:self-auto">
+                  <div className="text-right">
+                    <span className="text-xs text-stone-400 block">Total Amount</span>
+                    <span className="text-base font-bold text-stone-900">₹{order.total}</span>
+                  </div>
+                  <Link to={`/user/orders/${order.id}`}>
+                    <Button variant="outline" size="sm" icon={ChevronRight} iconPosition="right">
+                      Track Order
+                    </Button>
+                  </Link>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-stone-900 font-bold text-sm">
-                <span>Total Amount:</span>
-                <span className="text-base text-amber-800 font-black">₹{order.total}</span>
+
+              {/* Order items summary */}
+              <div className="pt-4 divide-y divide-stone-50">
+                {order.items?.map((item, idx) => (
+                  <div key={idx} className="py-2 flex items-center justify-between text-xs text-stone-600">
+                    <span className="font-medium text-stone-800">
+                      {item.quantity} × {item.name}
+                    </span>
+                    <span className="font-bold">₹{item.price * item.quantity}</span>
+                  </div>
+                ))}
               </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

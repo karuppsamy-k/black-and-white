@@ -9,16 +9,23 @@ import {
   ArrowLeft,
   Banknote,
   QrCode,
+  ShoppingBag,
 } from 'lucide-react';
 import { useApp } from '../../../context/AppContext';
+import { useAuth } from '../../../context/AuthContext';
+import { createOrder } from '../../../services/firebase/firestoreService';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const CheckoutPage = () => {
   const { cart, cartTotal, clearCart, showToast } = useApp();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const [selectedAddress, setSelectedAddress] = useState('addr-1');
+  const [deliveryAddress, setDeliveryAddress] = useState(
+    currentUser?.address || 'Doorstep Delivery Address, Tamil Nadu'
+  );
   const [selectedDeliverySlot, setSelectedDeliverySlot] = useState('evening');
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [loading, setLoading] = useState(false);
@@ -27,30 +34,57 @@ export const CheckoutPage = () => {
   const taxes = Math.round(cartTotal * 0.05);
   const finalTotal = cartTotal + deliveryFee + taxes;
 
-  const addresses = [
-    {
-      id: 'addr-1',
-      title: 'Home (Madurai)',
-      details: 'Flat 4B, Meenakshi Towers, West Masi Street, Madurai - 625001',
-      phone: '+91 98765 43210',
-    },
-    {
-      id: 'addr-2',
-      title: 'Office (Madurai Branch)',
-      details: '3rd Floor, Tech Park, Bypass Road, Madurai - 625016',
-      phone: '+91 98765 43210',
-    },
-  ];
-
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
+    if (cart.length === 0) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const orderPayload = {
+        customerId: currentUser?.uid || 'guest-cust',
+        customerName: currentUser?.fullName || 'Valued Customer',
+        customerPhone: currentUser?.mobileNumber || '',
+        shopId: cart[0]?.shopId || 'artisan-hub',
+        shopName: cart[0]?.shopName || 'Artisan Sweet Shop',
+        items: cart.map((c) => ({
+          id: c.id,
+          name: c.name,
+          price: c.price,
+          quantity: c.quantity,
+          weight: c.weight || '500g',
+        })),
+        subtotal: cartTotal,
+        deliveryFee,
+        tax: taxes,
+        total: finalTotal,
+        address: deliveryAddress,
+        deliverySlot: selectedDeliverySlot,
+        paymentMethod: paymentMethod === 'upi' ? 'UPI' : paymentMethod === 'cod' ? 'Cash on Delivery' : 'Credit Card',
+        paymentStatus: paymentMethod === 'cod' ? 'Pending' : 'Paid',
+      };
+
+      const placed = await createOrder(orderPayload);
       clearCart();
-      showToast('Order BW-ORD-9021 placed successfully!', 'success');
-      navigate('/user/orders/BW-ORD-9021/track');
-    }, 800);
+      showToast(`Order ${placed.id} placed successfully!`, 'success');
+      navigate(`/user/orders/${placed.id}`);
+    } catch (_err) {
+      showToast('Error placing order. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (cart.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <EmptyState
+          icon={ShoppingBag}
+          title="Your Cart is Empty"
+          description="Please add fresh traditional sweets or snacks to your cart before proceeding to checkout."
+          actionLabel="Explore Delicacies"
+          onAction={() => navigate('/user/products')}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -68,35 +102,16 @@ export const CheckoutPage = () => {
           {/* 1. Address Selection */}
           <Card title="1. Delivery Address">
             <div className="space-y-3">
-              {addresses.map((addr) => (
-                <label
-                  key={addr.id}
-                  className={`p-4 rounded-xl border flex items-start gap-3 cursor-pointer transition ${
-                    selectedAddress === addr.id
-                      ? 'border-amber-600 bg-amber-50/40 ring-1 ring-amber-600'
-                      : 'border-stone-200 hover:bg-stone-50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="address"
-                    checked={selectedAddress === addr.id}
-                    onChange={() => setSelectedAddress(addr.id)}
-                    className="mt-1 text-amber-600 focus:ring-amber-500"
-                  />
-                  <div>
-                    <h4 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-amber-700" /> {addr.title}
-                    </h4>
-                    <p className="text-xs text-stone-600 mt-1">{addr.details}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">Contact: {addr.phone}</p>
-                  </div>
-                </label>
-              ))}
-
-              <Link to="/user/addresses" className="inline-block text-xs font-bold text-amber-700 hover:underline pt-2">
-                + Add or manage saved addresses
-              </Link>
+              <label className="text-xs font-semibold text-stone-600 block">
+                Delivery Address:
+              </label>
+              <textarea
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                rows={3}
+                className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+                placeholder="Enter complete delivery street address, city, and pincode..."
+              />
             </div>
           </Card>
 
@@ -179,50 +194,43 @@ export const CheckoutPage = () => {
               {cart.map((item) => (
                 <div key={item.id} className="pt-2.5 first:pt-0 flex items-center justify-between text-xs">
                   <div>
-                    <h5 className="font-semibold text-stone-800 line-clamp-1">{item.name}</h5>
-                    <p className="text-[10px] text-stone-400">Qty: {item.quantity} • {item.weight}</p>
+                    <h5 className="font-bold text-stone-900">{item.name}</h5>
+                    <p className="text-stone-400">Qty: {item.quantity} • {item.weight || '500g'}</p>
                   </div>
-                  <span className="font-bold text-stone-900">₹{item.price * item.quantity}</span>
+                  <span className="font-bold text-stone-800">₹{item.price * item.quantity}</span>
                 </div>
               ))}
             </div>
 
-            <div className="border-t border-stone-200 mt-4 pt-3 space-y-2 text-xs">
-              <div className="flex justify-between text-stone-600">
+            <div className="pt-4 border-t border-stone-100 space-y-2 text-xs">
+              <div className="flex justify-between text-stone-500">
                 <span>Subtotal</span>
-                <span className="font-medium text-stone-900">₹{cartTotal}</span>
+                <span className="font-semibold text-stone-800">₹{cartTotal}</span>
               </div>
-              <div className="flex justify-between text-stone-600">
-                <span>Delivery</span>
-                <span>{deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}</span>
+              <div className="flex justify-between text-stone-500">
+                <span>Packaging & Delivery</span>
+                <span className="font-semibold text-stone-800">₹{deliveryFee}</span>
               </div>
-              <div className="flex justify-between text-stone-600">
-                <span>GST Tax (5%)</span>
-                <span>₹{taxes}</span>
+              <div className="flex justify-between text-stone-500">
+                <span>GST (5%)</span>
+                <span className="font-semibold text-stone-800">₹{taxes}</span>
               </div>
-              <div className="border-t border-stone-200 pt-2 flex justify-between items-baseline font-bold">
-                <span className="text-sm text-stone-900">Total Payable</span>
-                <span className="text-xl text-amber-800">₹{finalTotal}</span>
+              <div className="pt-2 border-t border-stone-200 flex justify-between text-sm font-bold text-stone-900">
+                <span>Total Payable</span>
+                <span className="text-base text-amber-700">₹{finalTotal}</span>
               </div>
             </div>
 
-            <div className="pt-5">
-              <Button
-                fullWidth
-                variant="primary"
-                size="lg"
-                loading={loading}
-                onClick={handlePlaceOrder}
-                icon={CheckCircle2}
-              >
-                Place Order Now • ₹{finalTotal}
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-center gap-1.5 text-[10px] text-stone-400 text-center mt-3">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>100% Satisfaction & Freshness Guarantee</span>
-            </div>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              className="mt-4"
+              loading={loading}
+              onClick={handlePlaceOrder}
+            >
+              Place Fresh Batch Order • ₹{finalTotal}
+            </Button>
           </Card>
         </div>
       </div>

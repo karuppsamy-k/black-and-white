@@ -11,3 +11,12 @@ export { EmptyState } from './EmptyState';
 export { Notification } from './Notification';
 export { Pagination } from './Pagination';
 export { SearchBar } from './SearchBar';
+export {
+  Skeleton,
+  CardSkeleton,
+  StatCardSkeleton,
+  TableSkeleton,
+  OrderListSkeleton,
+  DetailSkeleton,
+} from './Skeleton';
+

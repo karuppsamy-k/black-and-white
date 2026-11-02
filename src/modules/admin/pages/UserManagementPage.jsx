@@ -6,7 +6,9 @@ import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import SearchBar from '../../../components/common/SearchBar';
 import Modal from '../../../components/common/Modal';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import { TableSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
+import { Users } from 'lucide-react';
 
 export const UserManagementPage = () => {
   const { showToast } = useApp();
@@ -92,13 +94,19 @@ export const UserManagementPage = () => {
         </div>
 
         {loading ? (
-          <div className="py-16">
-            <LoadingSpinner text="Fetching customer records from Firestore..." />
-          </div>
+          <TableSkeleton rows={5} cols={5} />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-sm">
-            No customer accounts found matching your query.
-          </div>
+          <EmptyState
+            icon={Users}
+            title={searchTerm ? 'No Customers Match Query' : 'No Customers Registered Yet'}
+            description={
+              searchTerm
+                ? 'Try a different search term or clear the filter.'
+                : 'Customer registrations from the mobile authentication flow will appear here.'
+            }
+            actionLabel={searchTerm ? 'Clear Search' : undefined}
+            onAction={searchTerm ? () => setSearchTerm('') : undefined}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">

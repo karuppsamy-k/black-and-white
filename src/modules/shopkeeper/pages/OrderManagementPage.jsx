@@ -1,19 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Eye, Filter, ArrowUpRight } from 'lucide-react';
-import { MOCK_ORDERS } from '../../../utils/mockData';
+import { Search, Eye, Filter, ArrowUpRight, ShoppingBag } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
+import { getOrdersByShop } from '../../../services/firebase/firestoreService';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import SearchBar from '../../../components/common/SearchBar';
+import Button from '../../../components/common/Button';
+import { TableSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const OrderManagementPage = () => {
+  const { currentUser } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
-  const filtered = MOCK_ORDERS.filter((ord) => {
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        const data = currentUser?.uid ? await getOrdersByShop(currentUser.uid) : [];
+        setOrders(data);
+      } catch (_err) {
+        setOrders([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, [currentUser?.uid]);
+
+  const filtered = orders.filter((ord) => {
     const matchSearch =
-      ord.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ord.customer.toLowerCase().includes(searchTerm.toLowerCase());
+      ord.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      ord.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = statusFilter === 'All' || ord.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -42,7 +64,7 @@ export const OrderManagementPage = () => {
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto text-xs w-full sm:w-auto">
-            {['All', 'Preparing', 'Delivered'].map((st) => (
+            {['All', 'Placed', 'Preparing', 'Delivered'].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
@@ -58,50 +80,61 @@ export const OrderManagementPage = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-stone-100 text-stone-400 uppercase font-semibold">
-                <th className="py-3 px-2">Order ID</th>
-                <th className="py-3 px-2">Date</th>
-                <th className="py-3 px-2">Customer</th>
-                <th className="py-3 px-2">Items Summary</th>
-                <th className="py-3 px-2">Payment</th>
-                <th className="py-3 px-2">Total</th>
-                <th className="py-3 px-2">Status</th>
-                <th className="py-3 px-2 text-right">View</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {filtered.map((ord) => (
-                <tr key={ord.id} className="hover:bg-stone-50/60 transition">
-                  <td className="py-3.5 px-2 font-mono font-bold text-stone-900">{ord.id}</td>
-                  <td className="py-3.5 px-2 text-stone-500">{ord.date}</td>
-                  <td className="py-3.5 px-2 font-medium text-stone-800">{ord.customer}</td>
-                  <td className="py-3.5 px-2 text-stone-600">
-                    {ord.items.map((i) => `${i.name} (×${i.quantity})`).join(', ')}
-                  </td>
-                  <td className="py-3.5 px-2 font-medium text-stone-700">{ord.paymentMethod}</td>
-                  <td className="py-3.5 px-2 font-black text-stone-900">₹{ord.total}</td>
-                  <td className="py-3.5 px-2">
-                    <Badge variant={ord.status === 'Delivered' ? 'success' : 'warning'}>
-                      {ord.status}
-                    </Badge>
-                  </td>
-                  <td className="py-3.5 px-2 text-right">
-                    <Link
-                      to={`/shopkeeper/orders/${ord.id}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:underline"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Details
-                    </Link>
-                  </td>
+        {/* Content */}
+        {loading ? (
+          <TableSkeleton rows={4} cols={5} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={ShoppingBag}
+            title={searchTerm ? 'No Matching Orders' : 'No Orders Recorded Yet'}
+            description={
+              searchTerm
+                ? 'Try adjusting your search criteria.'
+                : 'Orders received from customers will appear here in your fulfillment log.'
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-stone-700">
+              <thead className="bg-stone-50 text-xs uppercase font-bold text-stone-500 border-b border-stone-200">
+                <tr>
+                  <th className="py-3 px-4">Order ID</th>
+                  <th className="py-3 px-4">Date</th>
+                  <th className="py-3 px-4">Customer</th>
+                  <th className="py-3 px-4">Items Count</th>
+                  <th className="py-3 px-4">Total Amount</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {filtered.map((ord) => (
+                  <tr key={ord.id} className="hover:bg-stone-50/60 transition">
+                    <td className="py-3.5 px-4 font-mono font-bold text-stone-900">{ord.id}</td>
+                    <td className="py-3.5 px-4 text-xs text-stone-500">
+                      {new Date(ord.createdAt || Date.now()).toLocaleDateString()}
+                    </td>
+                    <td className="py-3.5 px-4 font-medium text-stone-900">{ord.customerName}</td>
+                    <td className="py-3.5 px-4 text-xs">{ord.items?.length || 0} items</td>
+                    <td className="py-3.5 px-4 font-bold text-stone-900">₹{ord.total}</td>
+                    <td className="py-3.5 px-4">
+                      <Badge variant={ord.status === 'Delivered' ? 'success' : 'warning'}>
+                        {ord.status}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <Link to={`/shopkeeper/orders/${ord.id}`}>
+                        <button className="p-1.5 text-stone-500 hover:text-stone-900 rounded-lg hover:bg-stone-100">
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

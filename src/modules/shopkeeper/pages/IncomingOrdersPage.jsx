@@ -1,24 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { BellRing, CheckCircle, XCircle, Clock, MapPin, Printer, ArrowUpRight } from 'lucide-react';
-import { MOCK_ORDERS } from '../../../utils/mockData';
+import { useAuth } from '../../../context/AuthContext';
 import { useApp } from '../../../context/AppContext';
+import { getOrdersByShop, updateOrderStatus } from '../../../services/firebase/firestoreService';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
+import { OrderListSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const IncomingOrdersPage = () => {
+  const { currentUser } = useAuth();
   const { showToast } = useApp();
-  const [incoming, setIncoming] = useState(MOCK_ORDERS);
+  const [incoming, setIncoming] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAccept = (id) => {
-    setIncoming(incoming.filter((o) => o.id !== id));
-    showToast(`Order ${id} accepted and sent to sweet packing kitchen!`, 'success');
+  const fetchIncoming = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = currentUser?.uid ? await getOrdersByShop(currentUser.uid) : [];
+      setIncoming(data.filter((o) => o.status === 'Placed' || o.status === 'Preparing'));
+    } catch (_err) {
+      setIncoming([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    fetchIncoming();
+  }, [fetchIncoming]);
+
+  const handleAccept = async (id) => {
+    try {
+      await updateOrderStatus(id, 'Preparing');
+      setIncoming((prev) => prev.map((o) => (o.id === id ? { ...o, status: 'Preparing' } : o)));
+      showToast(`Order ${id} accepted and sent to sweet packing kitchen!`, 'success');
+    } catch (_err) {
+      showToast('Error updating order status', 'error');
+    }
   };
 
-  const handleReject = (id) => {
-    setIncoming(incoming.filter((o) => o.id !== id));
-    showToast(`Order ${id} rejected`, 'info');
+  const handleDispatch = async (id) => {
+    try {
+      await updateOrderStatus(id, 'Delivered');
+      setIncoming((prev) => prev.filter((o) => o.id !== id));
+      showToast(`Order ${id} marked as dispatched!`, 'success');
+    } catch (_err) {
+      showToast('Error updating order status', 'error');
+    }
   };
 
   return (
@@ -35,89 +66,81 @@ export const IncomingOrdersPage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="danger" size="md">
+          <Badge variant={incoming.length > 0 ? 'danger' : 'success'} size="md">
             {incoming.length} Orders Pending Action
           </Badge>
         </div>
       </div>
 
-      {incoming.length === 0 ? (
-        <Card className="p-12 text-center space-y-3">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-2xl">
-            ✓
-          </div>
-          <h3 className="font-bold text-stone-900 text-lg">All incoming orders cleared!</h3>
-          <p className="text-xs text-stone-500 max-w-sm mx-auto">
-            Your kitchen queue is up to date. New customer requests will show up here automatically.
-          </p>
-          <div className="pt-2">
-            <Link to="/shopkeeper/orders/manage">
-              <Button variant="outline" size="sm">
-                View Past & Dispatched Orders
-              </Button>
-            </Link>
-          </div>
-        </Card>
+      {loading ? (
+        <OrderListSkeleton count={3} />
+      ) : incoming.length === 0 ? (
+        <EmptyState
+          icon={BellRing}
+          title="All Incoming Orders Cleared"
+          description="Your kitchen queue is up to date! As soon as customers place new sweet orders, they will ping this real-time queue."
+          actionLabel="View All Orders"
+          onAction={() => (window.location.href = '/shopkeeper/orders/manage')}
+        />
       ) : (
-        <div className="space-y-4">
-          {incoming.map((ord) => (
-            <Card key={ord.id} className="border-amber-300 ring-1 ring-amber-200">
+        <div className="space-y-6">
+          {incoming.map((order) => (
+            <Card key={order.id} className="border-l-4 border-l-red-500 overflow-hidden">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-stone-100 pb-4">
                 <div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono font-bold text-stone-900 text-base">{ord.id}</span>
-                    <Badge variant="warning">Awaiting Kitchen Acceptance</Badge>
-                    <span className="text-xs text-stone-400 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5 text-amber-600" /> Placed at 11:15 AM
-                    </span>
+                    <span className="font-mono text-base font-bold text-stone-900">{order.id}</span>
+                    <Badge variant={order.status === 'Preparing' ? 'warning' : 'danger'}>
+                      {order.status === 'Preparing' ? 'In Kitchen Packing' : 'New Order • Action Required'}
+                    </Badge>
                   </div>
                   <p className="text-xs text-stone-500 mt-1">
-                    Customer: <strong className="text-stone-800">{ord.customer}</strong> ({ord.phone})
+                    Customer: <strong className="text-stone-800">{order.customerName}</strong> ({order.customerPhone})
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => showToast('Printing Kitchen Order Ticket (KOT)...', 'info')}
-                    className="p-2 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50"
-                    title="Print KOT"
-                  >
-                    <Printer className="w-4 h-4" />
-                  </button>
-                  <Button variant="outline" size="sm" onClick={() => handleReject(ord.id)}>
-                    Decline
-                  </Button>
-                  <Button variant="primary" size="sm" icon={CheckCircle} onClick={() => handleAccept(ord.id)}>
-                    Accept & Prepare
-                  </Button>
+                  {order.status === 'Placed' ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={CheckCircle}
+                      onClick={() => handleAccept(order.id)}
+                    >
+                      Accept Order
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      icon={CheckCircle}
+                      onClick={() => handleDispatch(order.id)}
+                    >
+                      Mark Dispatched
+                    </Button>
+                  )}
+                  <Link to={`/shopkeeper/orders/${order.id}`}>
+                    <Button variant="outline" size="sm">
+                      Details
+                    </Button>
+                  </Link>
                 </div>
               </div>
 
-              {/* Items Breakdown */}
-              <div className="py-4 space-y-2">
-                <h5 className="text-[11px] font-bold text-stone-400 uppercase tracking-wider">
-                  Delicacies to Pack:
-                </h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  {ord.items.map((item, i) => (
-                    <div key={i} className="p-2.5 rounded-lg bg-stone-50 border border-stone-100 flex justify-between">
-                      <span className="font-bold text-stone-800">
-                        {item.name} × {item.quantity}
-                      </span>
-                      <span className="text-stone-500">₹{item.price * item.quantity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2 text-stone-500">
-                  <MapPin className="w-4 h-4 text-amber-700 flex-shrink-0" />
-                  <span>{ord.address}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-stone-500 font-medium">Payment: {ord.paymentMethod}</span>
-                  <span className="text-base font-black text-amber-800">₹{ord.total}</span>
+              {/* Items */}
+              <div className="pt-4 divide-y divide-stone-50 text-xs">
+                {order.items?.map((item, idx) => (
+                  <div key={idx} className="py-2 flex justify-between">
+                    <span className="font-medium text-stone-800">
+                      {item.quantity} × {item.name}
+                    </span>
+                    <span className="font-bold text-stone-900">₹{item.price * item.quantity}</span>
+                  </div>
+                ))}
+                <div className="pt-2 flex justify-between font-bold text-sm text-stone-900">
+                  <span>Total Amount</span>
+                  <span>₹{order.total}</span>
                 </div>
               </div>
             </Card>

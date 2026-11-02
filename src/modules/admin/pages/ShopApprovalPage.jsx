@@ -4,7 +4,8 @@ import { getAllShopkeepers, updateShopkeeperApproval } from '../../../services/f
 import { useApp } from '../../../context/AppContext';
 import Card from '../../../components/common/Card';
 import Button from '../../../components/common/Button';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import { TableSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const ShopApprovalPage = () => {
   const { showToast } = useApp();
@@ -73,19 +74,13 @@ export const ShopApprovalPage = () => {
       </div>
 
       {loading ? (
-        <div className="py-16">
-          <LoadingSpinner text="Checking pending shopkeeper applications in Firestore..." />
-        </div>
+        <TableSkeleton rows={3} cols={4} />
       ) : pendingList.length === 0 ? (
-        <Card className="p-12 text-center space-y-3">
-          <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-2xl">
-            ✓
-          </div>
-          <h3 className="font-bold text-slate-900 text-lg">No Pending Merchant Approvals</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            All registered confectioneries and sweet vendors have been reviewed and verified. New registrations will appear here in real-time.
-          </p>
-        </Card>
+        <EmptyState
+          icon={ShieldCheck}
+          title="No Pending Merchant Approvals"
+          description="All registered confectioneries and sweet vendors have been reviewed and verified. New registrations will appear here in real-time."
+        />
       ) : (
         <div className="space-y-6">
           {pendingList.map((shop) => (

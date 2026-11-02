@@ -28,7 +28,7 @@ export const ShopkeeperLayout = () => {
   const menuItems = [
     { name: 'Dashboard', path: '/shopkeeper/dashboard', icon: LayoutDashboard },
     { name: 'Shop Profile', path: '/shopkeeper/shop-profile', icon: Store },
-    { name: 'Incoming Orders', path: '/shopkeeper/orders/incoming', icon: BellRing, badge: '3 New' },
+    { name: 'Incoming Orders', path: '/shopkeeper/orders/incoming', icon: BellRing },
     { name: 'Order Management', path: '/shopkeeper/orders/manage', icon: ListOrdered },
     { name: 'Product Catalog', path: '/shopkeeper/products', icon: Package },
     { name: 'Manage Inventory', path: '/shopkeeper/products/manage', icon: Package },

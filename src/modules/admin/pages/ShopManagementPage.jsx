@@ -1,41 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Store, Star, MapPin, Search, Settings } from 'lucide-react';
-import { MOCK_SHOPS } from '../../../utils/mockData';
+import { getAllShopkeepers, updateShopkeeperStatus } from '../../../services/firebase/firestoreService';
 import { useApp } from '../../../context/AppContext';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import SearchBar from '../../../components/common/SearchBar';
+import { TableSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const ShopManagementPage = () => {
   const { showToast } = useApp();
-  const [shops, setShops] = useState(MOCK_SHOPS);
+  const [shops, setShops] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filtered = shops.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const fetchShops = async () => {
+    setLoading(true);
+    try {
+      const data = await getAllShopkeepers();
+      setShops(data);
+    } catch (_err) {
+      setShops([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleToggleShopStatus = (id) => {
-    setShops(
-      shops.map((s) => {
-        if (s.id === id) {
-          const next = s.status === 'Active' ? 'Disabled' : 'Active';
-          showToast(`Shop "${s.name}" status updated to ${next}`, 'info');
-          return { ...s, status: next };
-        }
-        return s;
-      })
+  useEffect(() => {
+    fetchShops();
+  }, []);
+
+  const filtered = shops.filter((s) => {
+    const name = s.shopName || s.fullName || '';
+    const city = s.city || '';
+    return (
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      city.toLowerCase().includes(searchTerm.toLowerCase())
     );
+  });
+
+  const handleToggleShopStatus = async (uid, currentStatus, shopName) => {
+    const next = currentStatus === 'Active' ? 'Inactive' : 'Active';
+    try {
+      await updateShopkeeperStatus(uid, next);
+      setShops((prev) =>
+        prev.map((s) => (s.uid === uid ? { ...s, accountStatus: next } : s))
+      );
+      showToast(`Shop "${shopName}" status updated to ${next}`, 'info');
+    } catch (_err) {
+      showToast('Error updating shop status', 'error');
+    }
   };
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-black text-slate-900">Shop Management</h1>
+        <h1 className="text-3xl font-black text-slate-900">Shop Operations & Controls</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Platform-wide retail control, commission fee structures, and merchant status
+          Platform-wide retail control, status toggles, and operating hubs
         </p>
       </div>
 
@@ -52,57 +74,71 @@ export const ShopManagementPage = () => {
           <span className="text-xs text-slate-400">Total Live Stores: {filtered.length}</span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-slate-400 uppercase font-semibold">
-                <th className="py-3 px-2">Store Details</th>
-                <th className="py-3 px-2">City</th>
-                <th className="py-3 px-2">Rating & Reviews</th>
-                <th className="py-3 px-2">Commission %</th>
-                <th className="py-3 px-2">Status</th>
-                <th className="py-3 px-2 text-right">Control</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((shop) => (
-                <tr key={shop.id} className="hover:bg-slate-50/60 transition">
-                  <td className="py-3.5 px-2">
-                    <div className="flex items-center gap-3">
-                      <img src={shop.image} alt={shop.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                      <div>
-                        <h4 className="font-bold text-slate-900">{shop.name}</h4>
-                        <span className="text-[10px] text-slate-400 font-mono">FSSAI: {shop.fssai}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-2 font-medium text-slate-700">{shop.city}</td>
-                  <td className="py-3.5 px-2 text-amber-700 font-bold">
-                    ★ {shop.rating} ({shop.reviewsCount})
-                  </td>
-                  <td className="py-3.5 px-2 font-mono font-bold text-slate-900">5.0% Standard</td>
-                  <td className="py-3.5 px-2">
-                    <Badge variant={shop.status === 'Active' ? 'success' : 'danger'}>
-                      {shop.status}
-                    </Badge>
-                  </td>
-                  <td className="py-3.5 px-2 text-right">
-                    <button
-                      onClick={() => handleToggleShopStatus(shop.id)}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition ${
-                        shop.status === 'Active'
-                          ? 'text-red-700 border-red-200 hover:bg-red-50'
-                          : 'text-emerald-700 border-emerald-200 hover:bg-emerald-50'
-                      }`}
-                    >
-                      {shop.status === 'Active' ? 'Disable' : 'Enable'}
-                    </button>
-                  </td>
+        {loading ? (
+          <TableSkeleton rows={4} cols={5} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={Store}
+            title={searchTerm ? 'No Stores Match Query' : 'No Stores Registered Yet'}
+            description={
+              searchTerm
+                ? 'Try adjusting your search criteria.'
+                : 'Confectioneries and sweet shops joining the platform will appear here.'
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 uppercase font-semibold">
+                  <th className="py-3 px-3">Store Details</th>
+                  <th className="py-3 px-3">City / Hub</th>
+                  <th className="py-3 px-3">Contact</th>
+                  <th className="py-3 px-3">Approval</th>
+                  <th className="py-3 px-3">Operating Status</th>
+                  <th className="py-3 px-3 text-right">Toggle Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((shop) => (
+                  <tr key={shop.uid || shop.id} className="hover:bg-slate-50/60 transition">
+                    <td className="py-3.5 px-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                          <Store className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900">{shop.shopName || shop.fullName}</h4>
+                          <span className="text-[10px] text-slate-400">{shop.fssai ? `FSSAI: ${shop.fssai}` : 'FSSAI Verified'}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-3 font-medium text-slate-700">{shop.city}</td>
+                    <td className="py-3.5 px-3 font-mono text-slate-600">+91 {shop.mobileNumber}</td>
+                    <td className="py-3.5 px-3">
+                      <Badge variant={shop.approvalStatus === 'Approved' ? 'success' : 'warning'}>
+                        {shop.approvalStatus}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 px-3">
+                      <Badge variant={shop.accountStatus === 'Active' ? 'success' : 'danger'}>
+                        {shop.accountStatus || 'Inactive'}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 px-3 text-right">
+                      <button
+                        onClick={() => handleToggleShopStatus(shop.uid || shop.id, shop.accountStatus, shop.shopName)}
+                        className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition"
+                      >
+                        Toggle {shop.accountStatus === 'Active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

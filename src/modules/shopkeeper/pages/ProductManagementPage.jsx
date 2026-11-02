@@ -1,43 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { PlusCircle, Edit, Trash2, Search, Package, Star } from 'lucide-react';
-import { MOCK_PRODUCTS } from '../../../utils/mockData';
+import { PlusCircle, Edit, Trash2, Search, Package, RefreshCw } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 import { useApp } from '../../../context/AppContext';
+import { getProductsByShop, deleteProduct, updateProduct } from '../../../services/firebase/firestoreService';
 import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import Button from '../../../components/common/Button';
 import SearchBar from '../../../components/common/SearchBar';
 import ConfirmDialog from '../../../components/common/ConfirmDialog';
+import { TableSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const ProductManagementPage = () => {
+  const { currentUser } = useAuth();
   const { showToast } = useApp();
-  const [products, setProducts] = useState(MOCK_PRODUCTS);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteId, setDeleteId] = useState(null);
 
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = currentUser?.uid ? await getProductsByShop(currentUser.uid) : [];
+      setProducts(data);
+    } catch (_err) {
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser?.uid]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
   const filtered = products.filter(
     (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchTerm.toLowerCase())
+      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDelete = () => {
-    setProducts(products.filter((p) => p.id !== deleteId));
-    setDeleteId(null);
-    showToast('Delicacy removed from inventory', 'info');
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteProduct(deleteId);
+      setProducts((prev) => prev.filter((p) => p.id !== deleteId));
+      showToast('Delicacy removed from inventory', 'info');
+    } catch (_err) {
+      showToast('Failed to delete product', 'error');
+    } finally {
+      setDeleteId(null);
+    }
   };
 
-  const handleToggleStock = (id) => {
-    setProducts(
-      products.map((p) => {
-        if (p.id === id) {
-          const nextStatus = p.status === 'In Stock' ? 'Out of Stock' : 'In Stock';
-          showToast(`Updated ${p.name} status to ${nextStatus}`, 'success');
-          return { ...p, status: nextStatus };
-        }
-        return p;
-      })
-    );
+  const handleToggleStock = async (id, currentStatus) => {
+    const nextStatus = currentStatus === 'In Stock' ? 'Out of Stock' : 'In Stock';
+    try {
+      await updateProduct(id, { status: nextStatus });
+      setProducts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: nextStatus } : p))
+      );
+      showToast(`Updated status to ${nextStatus}`, 'success');
+    } catch (_err) {
+      showToast('Error updating stock status', 'error');
+    }
   };
 
   return (
@@ -49,111 +77,117 @@ export const ProductManagementPage = () => {
             Monitor product stocks, price points, and active batch availability
           </p>
         </div>
-        <Link to="/shopkeeper/products/add">
-          <Button variant="primary" icon={PlusCircle}>
-            Add New Delicacy
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link to="/shopkeeper/products/add">
+            <Button variant="primary" icon={PlusCircle}>
+              Add New Delicacy
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <Card>
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
-          <div className="w-full sm:w-80">
-            <SearchBar
-              value={searchTerm}
-              onChange={setSearchTerm}
-              onClear={() => setSearchTerm('')}
-              placeholder="Filter by name or category..."
-            />
-          </div>
-          <span className="text-xs text-stone-400">Total items: {filtered.length}</span>
+      {/* Search Header */}
+      <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-stone-200/80 shadow-xs">
+        <div className="w-full sm:w-80">
+          <SearchBar
+            value={searchTerm}
+            onChange={setSearchTerm}
+            onClear={() => setSearchTerm('')}
+            placeholder="Search items by name or category..."
+          />
         </div>
+        <span className="text-xs font-semibold text-stone-400">
+          {filtered.length} Items Listed
+        </span>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-stone-100 text-stone-400 font-semibold uppercase">
-                <th className="py-3 px-2">Delicacy</th>
-                <th className="py-3 px-2">Category</th>
-                <th className="py-3 px-2">Price</th>
-                <th className="py-3 px-2">Weight</th>
-                <th className="py-3 px-2">Stock Units</th>
-                <th className="py-3 px-2">Status</th>
-                <th className="py-3 px-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {filtered.map((prod) => (
-                <tr key={prod.id} className="hover:bg-stone-50/60 transition">
-                  <td className="py-3.5 px-2">
-                    <div className="flex items-center gap-3">
-                      <img src={prod.image} alt={prod.name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+      {/* Product Table */}
+      {loading ? (
+        <TableSkeleton rows={5} cols={5} />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={Package}
+          title={searchTerm ? 'No Matching Products' : 'No Delicacies in Inventory'}
+          description={
+            searchTerm
+              ? 'Try searching with a different term.'
+              : 'You have not added any products yet. Click "Add New Delicacy" to list your first sweet or snack!'
+          }
+          actionLabel={searchTerm ? 'Clear Search' : 'Add First Delicacy'}
+          onAction={() => (searchTerm ? setSearchTerm('') : (window.location.href = '/shopkeeper/products/add'))}
+        />
+      ) : (
+        <Card className="overflow-hidden p-0 border border-stone-200/80">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-stone-700">
+              <thead className="bg-stone-50 text-xs uppercase font-bold text-stone-500 border-b border-stone-200">
+                <tr>
+                  <th className="py-3 px-4">Delicacy</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Price / Pack</th>
+                  <th className="py-3 px-4">Available Stock</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {filtered.map((prod) => (
+                  <tr key={prod.id} className="hover:bg-stone-50/60 transition">
+                    <td className="py-3.5 px-4 font-semibold text-stone-900 flex items-center gap-3">
+                      <img
+                        src={prod.image || 'https://images.unsplash.com/photo-1599488615731-7e5c2823ff28?w=100&auto=format&fit=crop&q=80'}
+                        alt={prod.name}
+                        className="w-10 h-10 rounded-lg object-cover border border-stone-200"
+                      />
                       <div>
-                        <h4 className="font-bold text-stone-900 line-clamp-1">{prod.name}</h4>
-                        <span className="text-[10px] text-amber-700 font-semibold flex items-center gap-0.5">
-                          <Star className="w-2.5 h-2.5 fill-current" /> {prod.rating} ({prod.reviews})
-                        </span>
+                        <span>{prod.name}</span>
+                        <span className="block text-[11px] text-stone-400 font-normal">{prod.weight || '500g'}</span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-2 font-medium text-stone-700">{prod.category}</td>
-                  <td className="py-3.5 px-2 font-black text-stone-900">₹{prod.price}</td>
-                  <td className="py-3.5 px-2 text-stone-500">{prod.weight}</td>
-                  <td className="py-3.5 px-2 font-semibold">
-                    <span className={prod.stock < 20 ? 'text-rose-600' : 'text-stone-800'}>
-                      {prod.stock} units
-                    </span>
-                  </td>
-                  <td className="py-3.5 px-2">
-                    <button
-                      onClick={() => handleToggleStock(prod.id)}
-                      className="cursor-pointer"
-                      title="Click to toggle availability"
-                    >
-                      <Badge
-                        variant={
-                          prod.status === 'In Stock'
-                            ? 'success'
-                            : prod.status === 'Low Stock'
-                            ? 'warning'
-                            : 'danger'
-                        }
+                    </td>
+                    <td className="py-3.5 px-4">{prod.category}</td>
+                    <td className="py-3.5 px-4 font-bold text-stone-900">₹{prod.price}</td>
+                    <td className="py-3.5 px-4">{prod.stock} units</td>
+                    <td className="py-3.5 px-4">
+                      <button
+                        onClick={() => handleToggleStock(prod.id, prod.status)}
+                        className="cursor-pointer"
+                        title="Click to toggle status"
                       >
-                        {prod.status}
-                      </Badge>
-                    </button>
-                  </td>
-                  <td className="py-3.5 px-2 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Link
-                        to={`/shopkeeper/products/edit/${prod.id}`}
-                        className="p-1.5 rounded-lg text-stone-500 hover:text-amber-700 hover:bg-stone-100 transition"
-                        title="Edit product"
-                      >
-                        <Edit className="w-4 h-4" />
+                        <Badge variant={prod.status === 'In Stock' ? 'success' : 'danger'}>
+                          {prod.status}
+                        </Badge>
+                      </button>
+                    </td>
+                    <td className="py-3.5 px-4 text-right space-x-2">
+                      <Link to={`/shopkeeper/products/edit/${prod.id}`}>
+                        <button className="p-1.5 text-stone-500 hover:text-stone-900 rounded-lg hover:bg-stone-100">
+                          <Edit className="w-4 h-4" />
+                        </button>
                       </Link>
                       <button
                         onClick={() => setDeleteId(prod.id)}
-                        className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-stone-100 transition"
-                        title="Delete product"
+                        className="p-1.5 text-red-500 hover:text-red-700 rounded-lg hover:bg-red-50"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
+      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={Boolean(deleteId)}
-        onClose={() => setDeleteId(null)}
+        title="Remove Delicacy"
+        message="Are you sure you want to permanently delete this product from your inventory catalog?"
+        confirmText="Delete"
+        variant="danger"
         onConfirm={handleDelete}
-        title="Delete Delicacy from Inventory?"
-        message="This item will no longer appear on your public store menu for customers to purchase."
+        onCancel={() => setDeleteId(null)}
       />
     </div>
   );

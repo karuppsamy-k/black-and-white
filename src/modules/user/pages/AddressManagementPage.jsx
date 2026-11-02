@@ -10,30 +10,7 @@ import ConfirmDialog from '../../../components/common/ConfirmDialog';
 export const AddressManagementPage = () => {
   const { showToast } = useApp();
 
-  const [addresses, setAddresses] = useState([
-    {
-      id: 'addr-1',
-      type: 'Home',
-      title: 'Meenakshi Towers',
-      street: 'Flat 4B, Meenakshi Towers, West Masi Street',
-      city: 'Madurai',
-      state: 'Tamil Nadu',
-      pincode: '625001',
-      phone: '+91 98765 43210',
-      isDefault: true,
-    },
-    {
-      id: 'addr-2',
-      type: 'Work',
-      title: 'Tech Park Office',
-      street: '3rd Floor, Tech Park, Bypass Road',
-      city: 'Madurai',
-      state: 'Tamil Nadu',
-      pincode: '625016',
-      phone: '+91 98765 43210',
-      isDefault: false,
-    },
-  ]);
+  const [addresses, setAddresses] = useState([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -86,55 +63,70 @@ export const AddressManagementPage = () => {
       </div>
 
       {/* Address Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {addresses.map((addr) => (
-          <Card key={addr.id} className="relative flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-amber-50 text-amber-700">
-                    {addr.type === 'Home' ? <Home className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
+      {addresses.length === 0 ? (
+        <div className="p-12 text-center bg-white rounded-3xl border border-dashed border-stone-200 space-y-3">
+          <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+            <MapPin className="w-6 h-6" />
+          </div>
+          <h3 className="font-bold text-stone-900 text-base">No Saved Addresses</h3>
+          <p className="text-xs text-stone-500 max-w-sm mx-auto">
+            Add your primary residential or office delivery address for fast 1-click checkout.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)} icon={Plus}>
+            Add First Address
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {addresses.map((addr) => (
+            <Card key={addr.id} className="relative flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-amber-50 text-amber-700">
+                      {addr.type === 'Home' ? <Home className="w-4 h-4" /> : <Briefcase className="w-4 h-4" />}
+                    </div>
+                    <h3 className="font-bold text-stone-900 text-sm">{addr.title}</h3>
                   </div>
-                  <h3 className="font-bold text-stone-900 text-sm">{addr.title}</h3>
+                  {addr.isDefault && (
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full uppercase">
+                      Default
+                    </span>
+                  )}
                 </div>
-                {addr.isDefault && (
-                  <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full uppercase">
-                    Default
-                  </span>
-                )}
+
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  {addr.street}, {addr.city}, {addr.state} - {addr.pincode}
+                </p>
+                <p className="text-xs text-stone-500">Phone: {addr.phone}</p>
               </div>
 
-              <p className="text-xs text-stone-600 leading-relaxed">
-                {addr.street}, {addr.city}, {addr.state} - {addr.pincode}
-              </p>
-              <p className="text-xs text-stone-500">Phone: {addr.phone}</p>
-            </div>
+              <div className="pt-4 border-t border-stone-100 mt-4 flex items-center justify-between text-xs">
+                {!addr.isDefault ? (
+                  <button
+                    onClick={() => handleSetDefault(addr.id)}
+                    className="text-stone-500 hover:text-amber-700 font-semibold"
+                  >
+                    Set as Default
+                  </button>
+                ) : (
+                  <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" /> Selected Default
+                  </span>
+                )}
 
-            <div className="pt-4 border-t border-stone-100 mt-4 flex items-center justify-between text-xs">
-              {!addr.isDefault ? (
                 <button
-                  onClick={() => handleSetDefault(addr.id)}
-                  className="text-stone-500 hover:text-amber-700 font-semibold"
+                  onClick={() => setDeleteId(addr.id)}
+                  className="text-red-500 hover:text-red-700 p-1 transition"
+                  title="Delete address"
                 >
-                  Set as Default
+                  <Trash2 className="w-4 h-4" />
                 </button>
-              ) : (
-                <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" /> Selected Default
-                </span>
-              )}
-
-              <button
-                onClick={() => setDeleteId(addr.id)}
-                className="text-red-500 hover:text-red-700 p-1 transition"
-                title="Delete address"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          </Card>
-        ))}
-      </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Add Address Modal */}
       <Modal

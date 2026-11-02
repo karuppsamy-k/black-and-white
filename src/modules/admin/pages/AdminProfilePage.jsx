@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { Shield, Key, Lock, CheckCircle2, Save, User } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 import { useApp } from '../../../context/AppContext';
 import Card from '../../../components/common/Card';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 
 export const AdminProfilePage = () => {
+  const { currentUser } = useAuth();
   const { showToast } = useApp();
   const [formData, setFormData] = useState({
-    name: 'Super Administrator',
-    email: 'admin@blackandwhite.in',
-    phone: '+91 94444 88888',
+    name: currentUser?.fullName || 'Super Administrator',
+    email: currentUser?.email || 'admin@blackandwhite.in',
+    phone: currentUser?.mobileNumber || '',
     role: 'Root SuperAdmin',
   });
   const [loading, setLoading] = useState(false);

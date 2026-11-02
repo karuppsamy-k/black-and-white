@@ -11,11 +11,11 @@ export const UserProfilePage = () => {
   const { showToast } = useApp();
 
   const [formData, setFormData] = useState({
-    name: currentUser?.displayName || 'Karuppasamy',
-    email: currentUser?.email || 'karuppu@blackandwhite.in',
-    phone: '+91 98765 43210',
-    city: 'Madurai',
-    pincode: '625001',
+    name: currentUser?.fullName || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.mobileNumber || '',
+    city: '',
+    pincode: '',
   });
 
   const [passwordData, setPasswordData] = useState({

@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { User, Mail, Phone, ShieldCheck, CheckCircle2, Save } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
 import { useApp } from '../../../context/AppContext';
 import Card from '../../../components/common/Card';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 
 export const ShopkeeperProfilePage = () => {
+  const { currentUser } = useAuth();
   const { showToast } = useApp();
   const [formData, setFormData] = useState({
-    ownerName: 'Sundaram Iyer',
-    businessEmail: 'meenakshi.sweets@gmail.com',
-    primaryPhone: '+91 98421 11222',
-    alternatePhone: '+91 98421 33444',
-    residenceCity: 'Madurai',
+    ownerName: currentUser?.fullName || '',
+    businessEmail: currentUser?.email || '',
+    primaryPhone: currentUser?.mobileNumber || '',
+    alternatePhone: '',
+    residenceCity: currentUser?.city || 'Madurai',
   });
   const [loading, setLoading] = useState(false);
 
@@ -36,73 +38,62 @@ export const ShopkeeperProfilePage = () => {
 
       {/* Verification Badges */}
       <Card title="Merchant Verification Badges">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
             <div>
-              <p className="font-bold text-emerald-950">FSSAI Certified</p>
-              <p className="text-[11px] text-emerald-700">License #12421008000451</p>
+              <p className="font-bold text-emerald-950">FSSAI Status</p>
+              <p className="text-[11px] text-emerald-700">
+                {currentUser?.fssai ? `License: ${currentUser.fssai}` : 'Compliant Merchant'}
+              </p>
             </div>
           </div>
 
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
             <div>
-              <p className="font-bold text-emerald-950">GSTIN Verified</p>
-              <p className="text-[11px] text-emerald-700">33AAAAA0000A1Z5</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            <div>
-              <p className="font-bold text-emerald-950">Bank KYC Approved</p>
-              <p className="text-[11px] text-emerald-700">HDFC Bank Direct NEFT</p>
+              <p className="font-bold text-emerald-950">Mobile Verified</p>
+              <p className="text-[11px] text-emerald-700">+91 {currentUser?.mobileNumber || 'Registered'}</p>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* Edit Form */}
-      <Card title="Proprietor Contact Details">
+      {/* Profile Form */}
+      <Card title="Owner Particulars">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Owner Full Name"
+              label="Proprietor Full Name"
               value={formData.ownerName}
               onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
-              icon={User}
               required
             />
             <Input
-              label="Registered Business Email"
-              type="email"
-              value={formData.businessEmail}
-              onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
-              icon={Mail}
-              required
+              label="Primary Contact Mobile"
+              value={formData.primaryPhone}
+              disabled
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Primary Mobile"
-              value={formData.primaryPhone}
-              onChange={(e) => setFormData({ ...formData, primaryPhone: e.target.value })}
-              icon={Phone}
-              required
+              label="Business Email"
+              type="email"
+              value={formData.businessEmail}
+              onChange={(e) => setFormData({ ...formData, businessEmail: e.target.value })}
+              placeholder="shop@email.com"
             />
             <Input
-              label="Emergency / Alternate Phone"
-              value={formData.alternatePhone}
-              onChange={(e) => setFormData({ ...formData, alternatePhone: e.target.value })}
-              icon={Phone}
+              label="Home / Operating City"
+              value={formData.residenceCity}
+              onChange={(e) => setFormData({ ...formData, residenceCity: e.target.value })}
             />
           </div>
 
-          <div className="pt-2 flex justify-end">
-            <Button type="submit" variant="primary" loading={loading} icon={Save}>
-              Save Profile Updates
+          <div className="pt-4 flex justify-end">
+            <Button type="submit" variant="primary" icon={Save} loading={loading}>
+              Save Profile
             </Button>
           </div>
         </form>

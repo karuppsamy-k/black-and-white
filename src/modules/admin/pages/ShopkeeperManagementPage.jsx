@@ -7,7 +7,8 @@ import Card from '../../../components/common/Card';
 import Badge from '../../../components/common/Badge';
 import SearchBar from '../../../components/common/SearchBar';
 import Modal from '../../../components/common/Modal';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import { TableSkeleton } from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
 
 export const ShopkeeperManagementPage = () => {
   const { showToast } = useApp();
@@ -103,13 +104,19 @@ export const ShopkeeperManagementPage = () => {
         </div>
 
         {loading ? (
-          <div className="py-16">
-            <LoadingSpinner text="Fetching shopkeeper records from Firestore..." />
-          </div>
+          <TableSkeleton rows={5} cols={6} />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-slate-400 text-sm">
-            No shopkeeper records found.
-          </div>
+          <EmptyState
+            icon={Store}
+            title={searchTerm ? 'No Merchants Match Query' : 'No Shopkeepers Registered Yet'}
+            description={
+              searchTerm
+                ? 'Try searching with a different term.'
+                : 'Registered confectionery merchants and their compliance status will appear here.'
+            }
+            actionLabel={searchTerm ? 'Clear Search' : undefined}
+            onAction={searchTerm ? () => setSearchTerm('') : undefined}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
