@@ -15,8 +15,6 @@ import {
   X,
   LogOut,
   ExternalLink,
-  ShieldCheck,
-  CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,7 +23,7 @@ export const ShopkeeperLayout = () => {
   const [shopOnline, setShopOnline] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentUser, switchRole, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
 
   const menuItems = [
     { name: 'Dashboard', path: '/shopkeeper/dashboard', icon: LayoutDashboard },
@@ -41,8 +39,8 @@ export const ShopkeeperLayout = () => {
     { name: 'Owner Profile', path: '/shopkeeper/profile', icon: User },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/shopkeeper/login');
   };
 
@@ -75,7 +73,7 @@ export const ShopkeeperLayout = () => {
                 <h1 className="font-serif font-bold text-white text-sm tracking-tight leading-tight">
                   Merchant Hub
                 </h1>
-                <p className="text-[11px] text-amber-400 font-medium">Black&White Partner</p>
+                <p className="text-[11px] text-amber-400 font-medium">Black & White Partner</p>
               </div>
             </div>
             <button
@@ -90,9 +88,9 @@ export const ShopkeeperLayout = () => {
           <div className="px-5 py-3 bg-stone-800/60 border-b border-stone-800 flex items-center justify-between">
             <div className="truncate">
               <p className="text-xs font-semibold text-stone-200 truncate">
-                {currentUser?.displayName || 'Madurai Meenakshi Sweets'}
+                {currentUser?.shopName || currentUser?.fullName || 'Madurai Meenakshi Sweets'}
               </p>
-              <p className="text-[10px] text-stone-400">FSSAI: 12421008000451</p>
+              <p className="text-[10px] text-stone-400 font-mono">Mobile: {currentUser?.mobileNumber || '9842111222'}</p>
             </div>
             <button
               onClick={() => setShopOnline(!shopOnline)}
@@ -102,7 +100,7 @@ export const ShopkeeperLayout = () => {
                   : 'bg-red-500/20 text-red-400 border border-red-500/30'
               }`}
             >
-              {shopOnline ? 'Online' : 'Closed'}
+              {shopOnline ? 'Open' : 'Closed'}
             </button>
           </div>
 
@@ -137,18 +135,15 @@ export const ShopkeeperLayout = () => {
           </nav>
         </div>
 
-        {/* Sidebar Footer with Portal Switcher */}
+        {/* Sidebar Footer */}
         <div className="p-4 border-t border-stone-800 space-y-2 bg-stone-950/40">
-          <button
-            onClick={() => {
-              switchRole('user');
-              navigate('/user');
-            }}
+          <Link
+            to="/user"
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-stone-400 hover:text-white hover:bg-stone-800 transition"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            <span>Switch to Customer Store</span>
-          </button>
+            <span>Customer Storefront</span>
+          </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-red-400 hover:bg-red-950/40 transition"
@@ -172,7 +167,7 @@ export const ShopkeeperLayout = () => {
             </button>
             <div>
               <h2 className="text-base font-bold text-stone-900 leading-tight">Shopkeeper Portal</h2>
-              <p className="text-xs text-stone-500">Manage orders, fresh batches, and retail revenue</p>
+              <p className="text-xs text-stone-500">Live sweet batches, KOT orders, and dispatch tracking</p>
             </div>
           </div>
 
@@ -188,10 +183,10 @@ export const ShopkeeperLayout = () => {
 
             <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-stone-200">
               <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center font-bold text-xs">
-                MS
+                {currentUser?.fullName?.charAt(0) || 'M'}
               </div>
               <div className="text-left text-xs">
-                <p className="font-semibold text-stone-800">Madurai Sweets</p>
+                <p className="font-semibold text-stone-800">{currentUser?.shopName || 'Meenakshi Sweets'}</p>
                 <p className="text-stone-400 text-[10px]">Verified Merchant</p>
               </div>
             </div>

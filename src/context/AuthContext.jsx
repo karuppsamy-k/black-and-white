@@ -1,73 +1,113 @@
-import { createContext, useContext, useState, useMemo, useCallback } from 'react';
-import { auth } from '../services/firebase/firebaseConfig';
+import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  registerCustomer as apiRegisterCustomer,
+  loginCustomer as apiLoginCustomer,
+  registerShopkeeper as apiRegisterShopkeeper,
+  loginShopkeeper as apiLoginShopkeeper,
+  loginAdmin as apiLoginAdmin,
+  logoutUser as apiLogoutUser,
+  subscribeToAuthChanges,
+  getStoredSession,
+} from '../services/firebase/authService';
 
 /**
- * AuthContext (Phase 2 Enhanced)
- * Manages active user authentication state, current role, and demo role switcher.
+ * AuthContext (Phase 3 Complete Authentication & Session Control)
+ * Connects Firebase Auth & Firestore with role separation:
+ * - Customer ('customer')
+ * - Shopkeeper ('shopkeeper')
+ * - Admin ('admin')
  */
 export const AuthContext = createContext({
   currentUser: null,
   userRole: null,
   isAuthenticated: false,
-  loading: false,
-  login: () => {},
-  logout: () => {},
-  switchRole: () => {},
+  loading: true,
+  customerRegister: async () => {},
+  customerLogin: async () => {},
+  shopkeeperLogin: async () => {},
+  shopkeeperRegister: async () => {},
+  adminLogin: async () => {},
+  logout: async () => {},
 });
 
 export const AuthProvider = ({ children }) => {
-  // Default to a demo user for smooth UI inspection, or allow switching roles
-  const [currentUser, setCurrentUser] = useState({
-    uid: 'demo-user-101',
-    displayName: 'Karuppasamy',
-    email: 'karuppu@blackandwhite.in',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-    role: 'user',
-  });
-  const [userRole, setUserRole] = useState('user'); // 'user' | 'shopkeeper' | 'admin'
-  const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => getStoredSession());
+  const [loading, setLoading] = useState(true);
 
-  const login = useCallback((role = 'user', email = 'karuppu@blackandwhite.in') => {
-    setLoading(true);
-    setTimeout(() => {
-      const newUser = {
-        uid: `${role}-101`,
-        displayName:
-          role === 'admin'
-            ? 'Super Administrator'
-            : role === 'shopkeeper'
-            ? 'Madurai Meenakshi Sweets'
-            : 'Karuppasamy',
-        email,
-        role,
-      };
-      setCurrentUser(newUser);
-      setUserRole(role);
+  // Sync auth state listener on mount
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthChanges((user) => {
+      setCurrentUser(user);
       setLoading(false);
-    }, 200);
-  }, []);
-
-  const logout = useCallback(() => {
-    setCurrentUser(null);
-    setUserRole(null);
-  }, []);
-
-  const switchRole = useCallback((role) => {
-    setUserRole(role);
-    setCurrentUser((prev) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        role,
-        displayName:
-          role === 'admin'
-            ? 'Super Administrator'
-            : role === 'shopkeeper'
-            ? 'Madurai Meenakshi Sweets'
-            : 'Karuppasamy',
-      };
     });
+    return () => unsubscribe && unsubscribe();
   }, []);
+
+  const customerRegister = useCallback(async (data) => {
+    setLoading(true);
+    try {
+      const user = await apiRegisterCustomer(data);
+      setCurrentUser(user);
+      return user;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const customerLogin = useCallback(async (credentials) => {
+    setLoading(true);
+    try {
+      const user = await apiLoginCustomer(credentials);
+      setCurrentUser(user);
+      return user;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const shopkeeperLogin = useCallback(async (credentials) => {
+    setLoading(true);
+    try {
+      const user = await apiLoginShopkeeper(credentials);
+      setCurrentUser(user);
+      return user;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const shopkeeperRegister = useCallback(async (data) => {
+    setLoading(true);
+    try {
+      const user = await apiRegisterShopkeeper(data);
+      return user;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const adminLogin = useCallback(async (credentials) => {
+    setLoading(true);
+    try {
+      const user = await apiLoginAdmin(credentials);
+      setCurrentUser(user);
+      return user;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    setLoading(true);
+    try {
+      await apiLogoutUser();
+      setCurrentUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const userRole = currentUser?.role || null;
 
   const value = useMemo(
     () => ({
@@ -75,12 +115,24 @@ export const AuthProvider = ({ children }) => {
       userRole,
       isAuthenticated: Boolean(currentUser),
       loading,
-      login,
+      customerRegister,
+      customerLogin,
+      shopkeeperLogin,
+      shopkeeperRegister,
+      adminLogin,
       logout,
-      switchRole,
-      firebaseAuth: auth,
     }),
-    [currentUser, userRole, loading, login, logout, switchRole]
+    [
+      currentUser,
+      userRole,
+      loading,
+      customerRegister,
+      customerLogin,
+      shopkeeperLogin,
+      shopkeeperRegister,
+      adminLogin,
+      logout,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

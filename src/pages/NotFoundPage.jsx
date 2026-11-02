@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, ArrowLeft, Store, Shield } from 'lucide-react';
+import { Home, ArrowLeft, Store } from 'lucide-react';
 import Button from '../components/common/Button';
 
 export const NotFoundPage = () => {
@@ -28,19 +28,12 @@ export const NotFoundPage = () => {
         </Link>
       </div>
 
-      <div className="border-t border-stone-200 pt-6 flex flex-col sm:flex-row items-center gap-4 text-xs text-stone-500">
-        <span>Looking for another portal?</span>
-        <div className="flex items-center gap-3">
-          <Link to="/shopkeeper/dashboard" className="text-amber-700 hover:underline flex items-center gap-1 font-medium">
-            <Store className="w-3.5 h-3.5" />
-            Shopkeeper Portal
-          </Link>
-          <span>•</span>
-          <Link to="/admin/dashboard" className="text-purple-700 hover:underline flex items-center gap-1 font-medium">
-            <Shield className="w-3.5 h-3.5" />
-            Admin Dashboard
-          </Link>
-        </div>
+      <div className="border-t border-stone-200 pt-6 flex items-center gap-3 text-xs text-stone-500">
+        <span>Are you a registered merchant?</span>
+        <Link to="/shopkeeper/login" className="text-amber-700 hover:underline flex items-center gap-1 font-semibold">
+          <Store className="w-3.5 h-3.5" />
+          Shopkeeper Portal
+        </Link>
       </div>
     </div>
   );

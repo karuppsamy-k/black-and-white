@@ -1,35 +1,36 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, LogIn, Store, Shield } from 'lucide-react';
+import { Phone, Lock, LogIn, Store, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useApp } from '../../../context/AppContext';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState('karuppu@blackandwhite.in');
-  const [password, setPassword] = useState('password123');
+  const [mobileNumber, setMobileNumber] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const { customerLogin } = useAuth();
   const { showToast } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
     setLoading(true);
-    login('user', email);
-    setTimeout(() => {
-      setLoading(false);
-      showToast('Welcome back to Black&White!', 'success');
-      navigate('/user/dashboard');
-    }, 400);
-  };
 
-  const handleDemoLogin = (role, target) => {
-    login(role);
-    showToast(`Logged in as Demo ${role.toUpperCase()}`, 'info');
-    navigate(target);
+    try {
+      await customerLogin({ mobileNumber, password });
+      showToast('Welcome back to Black & White Sweets & Snacks!', 'success');
+      navigate('/user');
+    } catch (err) {
+      setErrorMessage(err.message || 'Login failed. Please verify your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -40,19 +41,27 @@ export const LoginPage = () => {
             B&W
           </div>
           <h2 className="text-2xl font-serif font-bold text-stone-900">Customer Sign In</h2>
-          <p className="text-xs text-stone-500">Access your saved sweets cart, addresses & orders</p>
+          <p className="text-xs text-stone-500">Sign in with your 10-digit mobile number to access your cart & orders</p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{errorMessage}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Email Address"
-            name="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            label="Mobile Number"
+            name="mobileNumber"
+            type="tel"
+            value={mobileNumber}
+            onChange={(e) => setMobileNumber(e.target.value)}
             required
-            icon={Mail}
-            placeholder="you@example.com"
+            icon={Phone}
+            placeholder="10-digit mobile number (e.g. 9876543210)"
+            maxLength={10}
           />
 
           <Input
@@ -76,44 +85,36 @@ export const LoginPage = () => {
               />
               <span>Remember me</span>
             </label>
-            <a href="#forgot" onClick={(e) => { e.preventDefault(); showToast('Password reset link sent to registered email', 'info'); }} className="text-amber-700 hover:underline font-medium">
+            <button
+              type="button"
+              onClick={() => showToast('Password reset link sent to registered mobile number', 'info')}
+              className="text-amber-700 hover:underline font-semibold"
+            >
               Forgot password?
-            </a>
+            </button>
           </div>
 
           <Button type="submit" fullWidth variant="primary" loading={loading} icon={LogIn}>
-            Sign In
+            Customer Sign In
           </Button>
         </form>
 
-        {/* Quick Demo Access */}
-        <div className="pt-2 border-t border-stone-100">
-          <p className="text-[11px] text-center text-stone-400 uppercase tracking-wider font-semibold mb-3">
-            Quick Demo Login
+        <div className="pt-2 border-t border-stone-100 flex flex-col gap-3 text-center text-xs text-stone-500">
+          <p>
+            Don't have a customer account?{' '}
+            <Link to="/user/register" className="text-amber-700 font-bold hover:underline">
+              Register Here
+            </Link>
           </p>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <button
-              onClick={() => handleDemoLogin('shopkeeper', '/shopkeeper/dashboard')}
-              className="p-2 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 flex items-center justify-center gap-1.5 transition"
+          <div className="pt-2 border-t border-stone-100">
+            <Link
+              to="/shopkeeper/login"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-amber-800 transition"
             >
               <Store className="w-3.5 h-3.5 text-amber-600" />
-              <span>Shopkeeper Demo</span>
-            </button>
-            <button
-              onClick={() => handleDemoLogin('admin', '/admin/dashboard')}
-              className="p-2 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 flex items-center justify-center gap-1.5 transition"
-            >
-              <Shield className="w-3.5 h-3.5 text-purple-600" />
-              <span>Admin Demo</span>
-            </button>
+              <span>Are you a Sweet Shop Partner? Go to Shopkeeper Login</span>
+            </Link>
           </div>
-        </div>
-
-        <div className="text-center text-xs text-stone-500 pt-2 border-t border-stone-100">
-          Don't have an account yet?{' '}
-          <Link to="/user/register" className="text-amber-700 font-bold hover:underline">
-            Register Here
-          </Link>
         </div>
       </div>
     </div>

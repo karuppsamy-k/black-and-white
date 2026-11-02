@@ -4,6 +4,7 @@ import UserLayout from '../layouts/UserLayout';
 import ShopkeeperLayout from '../layouts/ShopkeeperLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import NotFoundPage from '../pages/NotFoundPage';
+import ProtectedRoute from './ProtectedRoute';
 
 // Module route arrays
 import { userRoutes } from '../modules/user/routes/userRoutes';
@@ -16,8 +17,10 @@ import { ShopkeeperRegisterPage } from '../modules/shopkeeper/pages/ShopkeeperRe
 import { AdminLoginPage } from '../modules/admin/pages/AdminLoginPage';
 
 /**
- * AppRoutes (Phase 2 Central Navigation)
- * Connects 43 distinct pages across User, Shopkeeper, and Admin modules with Vercel SPA routing.
+ * AppRoutes (Phase 3 Strict RBAC & Session Protection)
+ * - Customer Module: Public & customer authenticated navigation
+ * - Shopkeeper Module: Requires approved and active shopkeeper credentials
+ * - Admin Module: Accessible exclusively via /admin/login for authorized superadministrators
  */
 export const AppRoutes = () => {
   return (
@@ -25,32 +28,36 @@ export const AppRoutes = () => {
       {/* Root redirect to Customer Storefront */}
       <Route path="/" element={<Navigate to="/user" replace />} />
 
-      {/* 1. USER MODULE (16 Pages) */}
+      {/* 1. CUSTOMER MODULE (16 Pages) */}
       <Route path="/user" element={<UserLayout />}>
         {userRoutes.map((r, i) => (
           <Route key={i} path={r.path} element={r.element} />
         ))}
       </Route>
 
-      {/* Standalone Shopkeeper Auth Routes */}
+      {/* Standalone Shopkeeper Auth Entry Routes */}
       <Route path="/shopkeeper/login" element={<ShopkeeperLoginPage />} />
       <Route path="/shopkeeper/register" element={<ShopkeeperRegisterPage />} />
 
-      {/* 2. SHOPKEEPER MODULE (Dashboard & Management Pages) */}
-      <Route path="/shopkeeper" element={<ShopkeeperLayout />}>
-        {shopkeeperRoutes.map((r, i) => (
-          <Route key={i} path={r.path} element={r.element} />
-        ))}
+      {/* 2. SHOPKEEPER MODULE (Protected Dashboard & Inventory Routes) */}
+      <Route element={<ProtectedRoute requiredRole="shopkeeper" redirectPath="/shopkeeper/login" />}>
+        <Route path="/shopkeeper" element={<ShopkeeperLayout />}>
+          {shopkeeperRoutes.map((r, i) => (
+            <Route key={i} path={r.path} element={r.element} />
+          ))}
+        </Route>
       </Route>
 
-      {/* Standalone Admin Auth Route */}
+      {/* Standalone Admin Auth Entry Route */}
       <Route path="/admin/login" element={<AdminLoginPage />} />
 
-      {/* 3. ADMIN MODULE (Dashboard & Platform Governance) */}
-      <Route path="/admin" element={<AdminLayout />}>
-        {adminRoutes.map((r, i) => (
-          <Route key={i} path={r.path} element={r.element} />
-        ))}
+      {/* 3. ADMIN MODULE (Protected Governance & Approvals Console) */}
+      <Route element={<ProtectedRoute requiredRole="admin" redirectPath="/admin/login" />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          {adminRoutes.map((r, i) => (
+            <Route key={i} path={r.path} element={r.element} />
+          ))}
+        </Route>
       </Route>
 
       {/* 404 NOT FOUND ROUTE */}

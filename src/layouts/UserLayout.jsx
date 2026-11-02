@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Search, User, Menu, X, ArrowRight, Shield, Store } from 'lucide-react';
+import { ShoppingBag, Search, User, Menu, X, ArrowRight, Store, LogOut } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,7 +9,7 @@ export const UserLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { cartCount, toast } = useApp();
-  const { currentUser, switchRole } = useAuth();
+  const { currentUser, isAuthenticated, logout } = useAuth();
 
   const navLinks = [
     { name: 'Home', path: '/user' },
@@ -19,9 +19,9 @@ export const UserLayout = () => {
     { name: 'My Orders', path: '/user/orders' },
   ];
 
-  const handlePortalSwitch = (role, targetPath) => {
-    switchRole(role);
-    navigate(targetPath);
+  const handleLogout = async () => {
+    await logout();
+    navigate('/user/login');
   };
 
   return (
@@ -36,32 +36,23 @@ export const UserLayout = () => {
         </div>
       )}
 
-      {/* Top Banner & Module Switcher Quick Access */}
+      {/* Top Banner with Clean Shopkeeper Portal Entry (No Admin Links) */}
       <div className="bg-stone-900 text-stone-300 text-xs py-2 px-4 border-b border-stone-800">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase">
-              Black&White
+              Black & White
             </span>
             <span className="hidden sm:inline">Fresh Traditional Sweets, Halwa & Savouries Delivered Direct From Artisans</span>
           </div>
-          <div className="flex items-center gap-3 ml-auto text-xs">
-            <span className="text-stone-400">Switch Module:</span>
-            <button
-              onClick={() => handlePortalSwitch('shopkeeper', '/shopkeeper/dashboard')}
-              className="inline-flex items-center gap-1 text-amber-400 hover:text-amber-300 font-medium transition"
+          <div className="flex items-center gap-4 ml-auto text-xs">
+            <Link
+              to="/shopkeeper/login"
+              className="inline-flex items-center gap-1.5 text-amber-400 hover:text-amber-300 font-semibold transition px-2.5 py-1 rounded-md bg-stone-800/80 hover:bg-stone-800 border border-amber-500/30"
             >
               <Store className="w-3.5 h-3.5" />
               <span>Shopkeeper Portal</span>
-            </button>
-            <span className="text-stone-600">|</span>
-            <button
-              onClick={() => handlePortalSwitch('admin', '/admin/dashboard')}
-              className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 font-medium transition"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>Admin Portal</span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -127,15 +118,34 @@ export const UserLayout = () => {
               )}
             </Link>
 
-            <Link
-              to="/user/dashboard"
-              className="hidden sm:inline-flex items-center gap-2 pl-3 pr-4 py-2 rounded-full border border-stone-200 hover:border-amber-500 bg-stone-50/50 hover:bg-white text-stone-800 text-sm font-medium transition"
-            >
-              <div className="w-6 h-6 rounded-full bg-amber-600/10 text-amber-700 flex items-center justify-center font-bold text-xs">
-                <User className="w-3.5 h-3.5" />
+            {isAuthenticated ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  to="/user/dashboard"
+                  className="inline-flex items-center gap-2 pl-3 pr-4 py-2 rounded-full border border-stone-200 hover:border-amber-500 bg-stone-50/50 hover:bg-white text-stone-800 text-sm font-medium transition"
+                >
+                  <div className="w-6 h-6 rounded-full bg-amber-600/10 text-amber-700 flex items-center justify-center font-bold text-xs">
+                    <User className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="max-w-[120px] truncate">{currentUser?.fullName || 'My Account'}</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 text-stone-400 hover:text-stone-700"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
-              <span className="max-w-[100px] truncate">{currentUser?.displayName || 'My Account'}</span>
-            </Link>
+            ) : (
+              <Link
+                to="/user/login"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-xs"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Customer Login</span>
+              </Link>
+            )}
 
             {/* Mobile Menu Hamburger */}
             <button
@@ -167,20 +177,45 @@ export const UserLayout = () => {
             ))}
             <div className="pt-3 border-t border-stone-100 flex flex-col gap-2">
               <Link
-                to="/user/dashboard"
+                to="/shopkeeper/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-between px-3 py-2.5 text-sm font-medium text-stone-700 bg-stone-50 rounded-lg"
+                className="flex items-center justify-between px-3 py-2.5 text-sm font-bold text-amber-900 bg-amber-50 rounded-lg border border-amber-200/60"
               >
-                <span>User Dashboard & Profile</span>
-                <ArrowRight className="w-4 h-4 text-stone-400" />
+                <span className="flex items-center gap-2">
+                  <Store className="w-4 h-4 text-amber-700" /> Shopkeeper Portal
+                </span>
+                <ArrowRight className="w-4 h-4 text-amber-700" />
               </Link>
-              <Link
-                to="/user/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block text-center px-4 py-2 text-sm font-medium text-amber-800 bg-amber-100/70 rounded-lg"
-              >
-                Login / Switch Account
-              </Link>
+
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/user/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between px-3 py-2.5 text-sm font-medium text-stone-700 bg-stone-50 rounded-lg"
+                  >
+                    <span>Customer Dashboard ({currentUser?.fullName})</span>
+                    <ArrowRight className="w-4 h-4 text-stone-400" />
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="block text-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg"
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/user/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block text-center px-4 py-2 text-sm font-medium text-amber-800 bg-amber-100/70 rounded-lg"
+                >
+                  Customer Login / Register
+                </Link>
+              )}
             </div>
           </div>
         )}
@@ -191,7 +226,7 @@ export const UserLayout = () => {
         <Outlet />
       </main>
 
-      {/* Footer */}
+      {/* Footer (No Admin Links) */}
       <footer className="bg-stone-900 text-stone-400 text-sm mt-16 border-t border-stone-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
@@ -209,19 +244,23 @@ export const UserLayout = () => {
             <div>
               <h4 className="text-white font-semibold mb-3 text-xs uppercase tracking-wider">Quick Links</h4>
               <ul className="space-y-2 text-xs">
-                <li><Link to="/user" className="hover:text-amber-400 transition">Home</Link></li>
+                <li><Link to="/user" className="hover:text-amber-400 transition">Customer Home</Link></li>
                 <li><Link to="/user/shops" className="hover:text-amber-400 transition">Authentic Sweet Shops</Link></li>
                 <li><Link to="/user/products" className="hover:text-amber-400 transition">Traditional Halwa & Murukku</Link></li>
                 <li><Link to="/user/orders" className="hover:text-amber-400 transition">Track My Order</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-3 text-xs uppercase tracking-wider">Merchant & Admin</h4>
+              <h4 className="text-white font-semibold mb-3 text-xs uppercase tracking-wider">Sweet Shop Partners</h4>
               <ul className="space-y-2 text-xs">
-                <li><Link to="/shopkeeper/login" className="hover:text-amber-400 transition">Shopkeeper Partner Login</Link></li>
+                <li>
+                  <Link to="/shopkeeper/login" className="text-amber-400 hover:text-amber-300 font-semibold transition flex items-center gap-1.5">
+                    <Store className="w-3.5 h-3.5" />
+                    <span>Shopkeeper Portal (Partner Login)</span>
+                  </Link>
+                </li>
                 <li><Link to="/shopkeeper/register" className="hover:text-amber-400 transition">Register Your Sweet Shop</Link></li>
-                <li><Link to="/admin/login" className="hover:text-amber-400 transition">Admin Control Panel</Link></li>
-                <li><Link to="/user/settings" className="hover:text-amber-400 transition">Settings & Preferences</Link></li>
+                <li><Link to="/user/settings" className="hover:text-amber-400 transition">Customer Preferences</Link></li>
               </ul>
             </div>
             <div>
@@ -230,13 +269,13 @@ export const UserLayout = () => {
                 100% pure ghee, natural palm jaggery, and certified FSSAI artisanal standards.
               </p>
               <div className="bg-stone-800/80 p-3 rounded-lg border border-stone-700/60 text-stone-300 text-xs">
-                <p className="font-medium text-amber-400">Black&White Express Delivery</p>
+                <p className="font-medium text-amber-400">Black & White Express Delivery</p>
                 <p className="text-[11px] text-stone-400">Available across Tamil Nadu & Southern Hubs</p>
               </div>
             </div>
           </div>
           <div className="pt-8 border-t border-stone-800/80 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-4">
-            <p>© 2026 QuickConnect / Black&White Sweets and Snacks. All rights reserved.</p>
+            <p>© 2026 Black and White Sweets and Snacks. All rights reserved.</p>
             <div className="flex gap-4">
               <span>Privacy Policy</span>
               <span>Terms of Service</span>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Phone, CheckCircle, Store } from 'lucide-react';
+import { User, Phone, Lock, CheckCircle, Store, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useApp } from '../../../context/AppContext';
 import Input from '../../../components/common/Input';
@@ -9,14 +9,15 @@ import Button from '../../../components/common/Button';
 export const RegisterPage = () => {
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
-    phone: '',
+    mobileNumber: '',
     password: '',
     confirmPassword: '',
     agreeTerms: true,
   });
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const { customerRegister } = useAuth();
   const { showToast } = useApp();
   const navigate = useNavigate();
 
@@ -28,19 +29,32 @@ export const RegisterPage = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      showToast('Passwords do not match', 'error');
+    setErrorMessage('');
+
+    if (!formData.agreeTerms) {
+      setErrorMessage('Please accept the Terms of Service to register.');
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
-      login('user', formData.email);
+
+    try {
+      await customerRegister({
+        fullName: formData.fullName,
+        mobileNumber: formData.mobileNumber,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      });
+
+      showToast('Registration successful! Welcome to Black & White.', 'success');
+      navigate('/user');
+    } catch (err) {
+      setErrorMessage(err.message || 'Registration failed. Please check your inputs.');
+    } finally {
       setLoading(false);
-      showToast('Account registered successfully! Welcome to Black&White.', 'success');
-      navigate('/user/dashboard');
-    }, 400);
+    }
   };
 
   return (
@@ -50,9 +64,16 @@ export const RegisterPage = () => {
           <div className="w-12 h-12 rounded-2xl bg-amber-600 text-white font-serif font-black text-xl flex items-center justify-center mx-auto shadow-md">
             B&W
           </div>
-          <h2 className="text-2xl font-serif font-bold text-stone-900">Create Customer Account</h2>
-          <p className="text-xs text-stone-500">Enjoy handcrafted sweets, fast delivery, and artisan rewards</p>
+          <h2 className="text-2xl font-serif font-bold text-stone-900">Customer Registration</h2>
+          <p className="text-xs text-stone-500">Create an account with your mobile number for fresh artisan sweets</p>
         </div>
+
+        {errorMessage && (
+          <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{errorMessage}</span>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -66,25 +87,15 @@ export const RegisterPage = () => {
           />
 
           <Input
-            label="Email Address"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            icon={Mail}
-            placeholder="you@example.com"
-          />
-
-          <Input
-            label="Phone Number"
-            name="phone"
+            label="Mobile Number"
+            name="mobileNumber"
             type="tel"
-            value={formData.phone}
+            value={formData.mobileNumber}
             onChange={handleChange}
             required
             icon={Phone}
-            placeholder="+91 98765 43210"
+            placeholder="10-digit mobile number"
+            maxLength={10}
           />
 
           <Input
@@ -118,7 +129,7 @@ export const RegisterPage = () => {
               required
               className="mt-0.5 rounded text-amber-600 focus:ring-amber-500"
             />
-            <span>I agree to Black&White Terms of Service & Privacy Policy</span>
+            <span>I agree to Black & White Terms of Service & Privacy Policy</span>
           </label>
 
           <Button type="submit" fullWidth variant="primary" loading={loading} icon={CheckCircle}>
@@ -128,17 +139,20 @@ export const RegisterPage = () => {
 
         <div className="pt-2 border-t border-stone-100 flex flex-col gap-2 text-center text-xs text-stone-500">
           <p>
-            Already have an account?{' '}
+            Already have a customer account?{' '}
             <Link to="/user/login" className="text-amber-700 font-bold hover:underline">
               Sign In
             </Link>
           </p>
-          <p className="pt-1 text-[11px] text-stone-400">
-            Are you a sweet shop owner?{' '}
-            <Link to="/shopkeeper/register" className="text-stone-700 font-semibold hover:underline inline-flex items-center gap-1">
-              <Store className="w-3 h-3" /> Register as Merchant
+          <div className="pt-2 border-t border-stone-100">
+            <Link
+              to="/shopkeeper/register"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-600 hover:text-amber-800 transition"
+            >
+              <Store className="w-3.5 h-3.5 text-amber-600" />
+              <span>Are you a Sweet Shop Proprietor? Register Shop Here</span>
             </Link>
-          </p>
+          </div>
         </div>
       </div>
     </div>

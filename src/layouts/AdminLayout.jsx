@@ -22,23 +22,23 @@ export const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { switchRole, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
 
   const adminNav = [
     { name: 'Overview Dashboard', path: '/admin/dashboard', icon: LayoutGrid },
-    { name: 'Shop Approvals', path: '/admin/shop-approvals', icon: CheckCircle, badge: '1 Pending' },
-    { name: 'Shopkeeper Directory', path: '/admin/shopkeepers', icon: Store },
-    { name: 'Shop Management', path: '/admin/shops', icon: Building },
-    { name: 'User Management', path: '/admin/users', icon: Users },
+    { name: 'Customer Management', path: '/admin/users', icon: Users },
+    { name: 'Shopkeeper Management', path: '/admin/shopkeepers', icon: Store },
+    { name: 'Shop Approvals', path: '/admin/shop-approvals', icon: CheckCircle },
+    { name: 'Shop Operations', path: '/admin/shops', icon: Building },
     { name: 'Product Catalog Audit', path: '/admin/products', icon: Package },
-    { name: 'Master Orders', path: '/admin/orders', icon: ShoppingBag },
+    { name: 'Master Orders Log', path: '/admin/orders', icon: ShoppingBag },
     { name: 'Reports & Analytics', path: '/admin/reports', icon: BarChart3 },
     { name: 'Admin Profile', path: '/admin/profile', icon: Shield },
     { name: 'System Settings', path: '/admin/settings', icon: Settings },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/admin/login');
   };
 
@@ -71,7 +71,7 @@ export const AdminLayout = () => {
                 <h1 className="font-bold text-white text-sm tracking-tight leading-tight">
                   Admin Command
                 </h1>
-                <p className="text-[11px] text-purple-400 font-medium">QuickConnect Master Control</p>
+                <p className="text-[11px] text-purple-400 font-medium">Black & White Master Control</p>
               </div>
             </div>
             <button
@@ -111,29 +111,21 @@ export const AdminLayout = () => {
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     <span>{item.name}</span>
                   </div>
-                  {item.badge && (
-                    <span className="bg-amber-500 text-slate-900 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                      {item.badge}
-                    </span>
-                  )}
                 </Link>
               );
             })}
           </nav>
         </div>
 
-        {/* Sidebar Footer with Portal Switcher */}
+        {/* Sidebar Footer */}
         <div className="p-4 border-t border-slate-800 space-y-2 bg-slate-950/40">
-          <button
-            onClick={() => {
-              switchRole('user');
-              navigate('/user');
-            }}
+          <Link
+            to="/user"
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             <span>Customer Storefront</span>
-          </button>
+          </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-medium text-red-400 hover:bg-red-950/40 transition"
@@ -157,7 +149,7 @@ export const AdminLayout = () => {
             </button>
             <div>
               <h2 className="text-base font-bold text-slate-900 leading-tight">Master Admin Console</h2>
-              <p className="text-xs text-slate-500">Global control of Black&White multi-vendor operations</p>
+              <p className="text-xs text-slate-500">Live governance of customers, sweet shops, and orders</p>
             </div>
           </div>
 
@@ -167,8 +159,8 @@ export const AdminLayout = () => {
                 SA
               </div>
               <div className="text-left text-xs">
-                <p className="font-semibold text-slate-800">Super Administrator</p>
-                <p className="text-purple-600 font-medium text-[10px]">Full Access</p>
+                <p className="font-semibold text-slate-800">{currentUser?.fullName || 'Super Administrator'}</p>
+                <p className="text-purple-600 font-medium text-[10px]">Root Access</p>
               </div>
             </div>
           </div>
